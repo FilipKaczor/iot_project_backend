@@ -5,7 +5,7 @@ const mqtt = require("mqtt");
 
 const PORT = process.env.PORT || 3000;
 const MQTT_URL = process.env.MQTT_URL || "mqtt://localhost:1883"; //do zmiany na brokera w VM, jeśli będzie miał inny adres ip
-const MQTT_TOPIC = process.env.MQTT_TOPIC || "incoming/data";
+const MQTT_TOPIC = process.env.MQTT_TOPIC || "mqtt_topic";
 
 const users = [];     // [{ username, password }]
 const dataStore = []; // [{ by, topic, payload, ts }]
