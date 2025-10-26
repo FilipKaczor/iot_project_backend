@@ -2,10 +2,10 @@ const express = require("express");
 const http = require("http");
 const WebSocket = require("ws");
 const mqtt = require("mqtt");
+require('dotenv').config();
 
 const PORT = process.env.PORT || 3000;
 const MQTT_URL = process.env.MQTT_URL || "mqtt://localhost:1883"; //do zmiany na brokera w VM, jeśli będzie miał inny adres ip
-const MQTT_TOPIC = process.env.MQTT_TOPIC || "mqtt_topic";
 
 const users = [];     // [{ username, password }]
 
@@ -128,13 +128,11 @@ const mqttClient = mqtt.connect(MQTT_URL, {
 mqttClient.on("connect", () => {
   console.log(`Connected with broker: ${MQTT_URL}`);
 
-  mqttClient.subscribe(MQTT_TOPIC, (err) => {
-    if (err) {
-      console.error("Sub error", err.message);
-    } else {
-      console.log(`Subscribing to: ${MQTT_TOPIC}`);
-    }
+  mqttClient.subscribe(["ph", "weight", "temp", "outside"], (err) => {
+    if (err) console.error("Sub error", err.message);
+    else console.log("Subscribing to: ph, weight, temp, outside");
   });
+
 });
 
 mqttClient.on("message", (topic, message) => {
@@ -147,18 +145,34 @@ mqttClient.on("message", (topic, message) => {
     ts: new Date().toISOString(),
   };
 
-  switch(topic){
+  console.log(entry)
+
+  switch(topic) {
     case "ph":
       dataPh.push(entry);
+      if (dataPh.length > 10000) dataPh.shift();
+      break;
+
     case "weight":
       dataWeight.push(entry);
+      if (dataWeight.length > 10000) dataWeight.shift();
+      break;
+
     case "temp":
       dataTemp.push(entry);
+      if (dataTemp.length > 10000) dataTemp.shift();
+      break;
+
     case "outside":
       dataOutside.push(entry);
+      if (dataOutside.length > 10000) dataOutside.shift();
+      break;
+
+    default:
+      console.warn("unkown topic: ", topic);
   }
-  //data limit
-  if (dataStore.length > 10000) dataStore.shift();
+
+  console.log("ph: ",dataPh,"weight: ",dataWeight,"temp: ", dataTemp, "outside:", dataOutside)
 });
 
 mqttClient.on("error", (err) => {
@@ -168,5 +182,5 @@ mqttClient.on("error", (err) => {
 // ---- Start ----
 server.listen(PORT, () => {
   console.log(`WS server: ws://localhost:${PORT}`);
-  console.log(`MQTT broker: ${MQTT_URL} | topic: ${MQTT_TOPIC}`);
+  console.log(`MQTT broker: ${MQTT_URL} `);
 });
