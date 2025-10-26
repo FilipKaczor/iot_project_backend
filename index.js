@@ -8,7 +8,11 @@ const MQTT_URL = process.env.MQTT_URL || "mqtt://localhost:1883"; //do zmiany na
 const MQTT_TOPIC = process.env.MQTT_TOPIC || "mqtt_topic";
 
 const users = [];     // [{ username, password }]
-const dataStore = []; // [{ by, topic, payload, ts }]
+
+// [{ payload, ts }]
+const dataPh = []
+const dataTemp = []
+const dataWeight = []
 
 const app = express();
 const server = http.createServer(app);
@@ -77,11 +81,27 @@ wss.on("connection", (ws) => {
         return send("loginSuccess", { username });
       }
 
-      case "getLast10": {
+      case "getTemp": {
         if (!ws.auth.loggedIn)
           return send("error", { error: "Login required" });
 
-        const last10 = dataStore.slice(-10);
+        const last10 = dataTemp.slice(-10);
+        return send("last10", { count: last10.length, items: last10 });
+      }
+
+      case "getPh": {
+        if (!ws.auth.loggedIn)
+          return send("error", { error: "Login required" });
+
+        const last10 = dataPh.slice(-10);
+        return send("last10", { count: last10.length, items: last10 });
+      }
+
+      case "getWeight": {
+        if (!ws.auth.loggedIn)
+          return send("error", { error: "Login required" });
+
+        const last10 = dataWeight.slice(-10);
         return send("last10", { count: last10.length, items: last10 });
       }
 
@@ -114,13 +134,18 @@ mqttClient.on("message", (topic, message) => {
   catch { payload = { raw: message.toString() }; }
 
   const entry = {
-    by: "mqtt",      
-    topic,
     payload,
     ts: new Date().toISOString(),
   };
-  dataStore.push(entry);
 
+  switch(topic){
+    case "ph":
+      dataPh.push(entry);
+    case "weight":
+      dataWeight.push(entry);
+    case "temp":
+      dataTemp.push(entry);
+  }
   //data limit
   if (dataStore.length > 10000) dataStore.shift();
 });
