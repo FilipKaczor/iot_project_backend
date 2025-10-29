@@ -7,7 +7,7 @@ require('dotenv').config();
 const PORT = process.env.PORT || 3000;
 const MQTT_URL = process.env.MQTT_URL || "mqtt://localhost:1883"; //do zmiany na brokera w VM, jeśli będzie miał inny adres ip
 
-const users = [];     // [{ username, password }]
+const users = [];     // [{ firstName, lastName, email, password }]
 
 // [{ payload, ts }]
 const dataPh = []
@@ -58,28 +58,31 @@ wss.on("connection", (ws) => {
 
     switch (type) {
       case "register": {
-        const { username, password } = msg;
+        console.log("register", users)
+        const { firstName, lastName, email, password } = msg;
 
-        if (!username || !password)
+        if (!firstName || !lastName || !email || !password)
           return send("error", { error: "Required username/password" });
-        if (users.find(u => u.username === username))
+        if (users.find(u => (u.firstName === firstName && u.lastName === lastName && u.email === email)))
           return send("error", { error: "User exists" });
 
-        users.push({ username, password });
-        return send("registerSuccess", { username });
+        users.push({ firstName, lastName, email, password });
+        ws.auth = { loggedIn: true, ...{ firstName, lastName, email, password }};
+        return send("registerSuccess", { firstName, lastName, email });
       }
 
       case "login": {
-        const { username, password } = msg;
+        console.log("login", users)
+        const { email, password } = msg;
 
-        if (!username || !password)
+        if (!email || !password)
           return send("error", { error: "Required username/password" });
-        const u = users.find(u => u.username === username);
+        const u = users.find(u => u.email === email);
         if (!u || u.password !== password)
           return send("error", { error: "Wrong login data" });
 
-        ws.auth = { loggedIn: true, username };
-        return send("loginSuccess", { username });
+        ws.auth = { loggedIn: true, ...u };
+        return send("loginSuccess", {...u});
       }
 
       case "getTemp": {
