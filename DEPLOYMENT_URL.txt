@@ -1,0 +1,59 @@
+==========================================
+IoT Project Backend - Deployed to Azure
+==========================================
+
+API URL:
+http://iot-api-20251117225131.azurewebsites.net
+
+HTTPS URL:
+https://iot-api-20251117225131.azurewebsites.net
+
+Swagger UI:
+http://iot-api-20251117225131.azurewebsites.net/swagger
+
+Health Check:
+http://iot-api-20251117225131.azurewebsites.net/health
+
+==========================================
+Share this URL with your team!
+==========================================
+
+Team Configuration:
+-------------------
+Mobile App (MobileApp/src/config/api.ts):
+export const API_BASE_URL = 'https://iot-api-20251117225131.azurewebsites.net';
+export const SIGNALR_HUB_URL = 'https://iot-api-20251117225131.azurewebsites.net/hubs/sensordata';
+
+==========================================
+Next Steps:
+==========================================
+
+1. Configure Database Connection:
+   Go to Azure Portal → App Service → Configuration
+   Add: ConnectionStrings__DefaultConnection
+   Value: Your Azure SQL connection string
+
+2. Configure JWT Secret:
+   Add: JwtSettings__SecretKey
+   Value: Generate random 32+ character string
+
+3. Configure IoT Hub (optional for now):
+   Add: AzureIoTHub__ConnectionString
+   Add: AzureIoTHub__EventHubConnectionString
+
+4. Save and Restart the app
+
+==========================================
+Test Deployment:
+==========================================
+
+curl https://iot-api-20251117225131.azurewebsites.net/health
+
+Expected: {"status":"OK","timestamp":"..."}
+
+==========================================
+Deployed: 2025-11-17 22:10 UTC
+Resource Group: iot-project-rg
+App Service Plan: iot-project-plan (Free F1)
+==========================================
+
