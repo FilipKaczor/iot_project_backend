@@ -1,59 +1,92 @@
-==========================================
-IoT Project Backend - Deployed to Azure
-==========================================
+================================================================================
+IoT PROJECT BACKEND - PRODUCTION DEPLOYMENT
+================================================================================
 
-API URL:
-http://iot-api-20251117225131.azurewebsites.net
-
-HTTPS URL:
+DEPLOYMENT URL:
 https://iot-api-20251117225131.azurewebsites.net
 
-Swagger UI:
-http://iot-api-20251117225131.azurewebsites.net/swagger
+================================================================================
+ARCHITECTURE
+================================================================================
+
+Raspberry Pi → WebSocket → Backend → SQL Database
+                                    ↓
+Mobile App ← HTTP REST ← Backend ← SQL Database
+
+================================================================================
+ENDPOINTS
+================================================================================
+
+HEALTH CHECK:
+GET https://iot-api-20251117225131.azurewebsites.net/health
+
+AUTHENTICATION:
+POST https://iot-api-20251117225131.azurewebsites.net/api/auth/register
+POST https://iot-api-20251117225131.azurewebsites.net/api/auth/login
+
+SENSOR DATA (Requires JWT Token):
+GET https://iot-api-20251117225131.azurewebsites.net/api/sensordata/ph?limit=10
+GET https://iot-api-20251117225131.azurewebsites.net/api/sensordata/temp?limit=10
+GET https://iot-api-20251117225131.azurewebsites.net/api/sensordata/weight?limit=10
+GET https://iot-api-20251117225131.azurewebsites.net/api/sensordata/outside?limit=10
+GET https://iot-api-20251117225131.azurewebsites.net/api/sensordata/all?limit=10
+GET https://iot-api-20251117225131.azurewebsites.net/api/sensordata/stats
+
+WEBSOCKET (Raspberry Pi):
+wss://iot-api-20251117225131.azurewebsites.net/ws/sensor-data
+
+================================================================================
+CONFIGURATION
+================================================================================
+
+WebSocket: ENABLED ✓
+Runtime: DOTNETCORE|8.0
+Status: Running
+
+================================================================================
+MOBILE APP CONFIGURATION
+================================================================================
+
+Update MobileApp/src/config/api.ts:
+
+export const API_BASE_URL = 'https://iot-api-20251117225131.azurewebsites.net';
+
+================================================================================
+RASPBERRY PI CONFIGURATION
+================================================================================
+
+WebSocket Endpoint:
+wss://iot-api-20251117225131.azurewebsites.net/ws/sensor-data
+
+Message Format (JSON):
+{
+  "type": "ph|temp|weight|outside",
+  "deviceId": "raspberry-pi-01",
+  "value": 7.2,
+  "metadata": "{\"location\":\"tank-1\"}",
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+
+================================================================================
+AZURE CONFIGURATION REQUIRED
+================================================================================
+
+1. Connection String (Azure Portal → App Service → Configuration):
+   ConnectionStrings__DefaultConnection = (your SQL connection string)
+
+2. JWT Secret Key (Azure Portal → App Service → Configuration):
+   JwtSettings__SecretKey = (generate 32+ character random string)
+
+================================================================================
+TESTING
+================================================================================
 
 Health Check:
-http://iot-api-20251117225131.azurewebsites.net/health
-
-==========================================
-Share this URL with your team!
-==========================================
-
-Team Configuration:
--------------------
-Mobile App (MobileApp/src/config/api.ts):
-export const API_BASE_URL = 'https://iot-api-20251117225131.azurewebsites.net';
-export const SIGNALR_HUB_URL = 'https://iot-api-20251117225131.azurewebsites.net/hubs/sensordata';
-
-==========================================
-Next Steps:
-==========================================
-
-1. Configure Database Connection:
-   Go to Azure Portal → App Service → Configuration
-   Add: ConnectionStrings__DefaultConnection
-   Value: Your Azure SQL connection string
-
-2. Configure JWT Secret:
-   Add: JwtSettings__SecretKey
-   Value: Generate random 32+ character string
-
-3. Configure IoT Hub (optional for now):
-   Add: AzureIoTHub__ConnectionString
-   Add: AzureIoTHub__EventHubConnectionString
-
-4. Save and Restart the app
-
-==========================================
-Test Deployment:
-==========================================
-
 curl https://iot-api-20251117225131.azurewebsites.net/health
 
-Expected: {"status":"OK","timestamp":"..."}
+Register:
+curl -X POST https://iot-api-20251117225131.azurewebsites.net/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"firstName":"Test","lastName":"User","email":"test@example.com","password":"test123"}'
 
-==========================================
-Deployed: 2025-11-17 22:10 UTC
-Resource Group: iot-project-rg
-App Service Plan: iot-project-plan (Free F1)
-==========================================
-
+================================================================================

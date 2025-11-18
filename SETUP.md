@@ -1,46 +1,37 @@
-# Setup Guide
+# Azure Setup Guide
+
+Step-by-step guide to set up Azure resources for the IoT Project.
 
 ## Prerequisites
 
-- .NET 8.0 SDK
-- Azure account with active subscription
-- Azure CLI installed
+- Azure account (free tier available)
+- Azure CLI installed: `az --version`
+- Logged in: `az login`
 
-## Azure Resources Setup
-
-### 1. Create Resource Group
+## 1. Create Resource Group
 
 ```bash
-az login
-az group create --name iot-project-rg --location westeurope
+az group create \
+  --name iot-project-rg \
+  --location eastus
 ```
 
-### 2. Create Azure SQL Database
+## 2. Create Azure SQL Database
+
+### Create SQL Server
 
 ```bash
-# Create SQL Server
 az sql server create \
   --name iot-project-sql-server \
   --resource-group iot-project-rg \
-  --location westeurope \
+  --location eastus \
   --admin-user sqladmin \
-  --admin-password "YourPassword123!"
+  --admin-password YourSecurePassword123!
+```
 
-# Create Database
-az sql db create \
-  --resource-group iot-project-rg \
-  --server iot-project-sql-server \
-  --name iot_project_db \
-  --service-objective Basic
+### Create Firewall Rule (Allow Azure Services)
 
-# Configure firewall
-az sql server firewall-rule create \
-  --resource-group iot-project-rg \
-  --server iot-project-sql-server \
-  --name AllowMyIP \
-  --start-ip-address YOUR_IP \
-  --end-ip-address YOUR_IP
-
+```bash
 az sql server firewall-rule create \
   --resource-group iot-project-rg \
   --server iot-project-sql-server \
@@ -49,231 +40,198 @@ az sql server firewall-rule create \
   --end-ip-address 0.0.0.0
 ```
 
-### 3. Create Azure IoT Hub
+### Create Database
 
 ```bash
-az extension add --name azure-iot
-
-az iot hub create \
-  --name iot-project-hub \
+az sql db create \
   --resource-group iot-project-rg \
-  --location westeurope \
-  --sku F1 \
-  --partition-count 2
-
-# Create IoT device
-az iot hub device-identity create \
-  --device-id esp32-sensor-01 \
-  --hub-name iot-project-hub
-
-# Get connection strings
-az iot hub connection-string show --hub-name iot-project-hub --policy-name service
-az iot hub connection-string show --hub-name iot-project-hub --default-eventhub
-az iot hub device-identity connection-string show --device-id esp32-sensor-01 --hub-name iot-project-hub
+  --server iot-project-sql-server \
+  --name iot_project_db \
+  --service-objective Basic \
+  --backup-storage-redundancy Local
 ```
 
-## Backend Configuration
+### Get Connection String
 
-### 1. Configure appsettings.json
-
-Edit `IoTProject.API/appsettings.json`:
-
-```json
-{
-  "ConnectionStrings": {
-    "DefaultConnection": "Server=tcp:iot-project-sql-server.database.windows.net,1433;Initial Catalog=iot_project_db;User ID=sqladmin;Password=YourPassword123!;Encrypt=True;TrustServerCertificate=False;"
-  },
-  "JwtSettings": {
-    "SecretKey": "your-secret-key-minimum-32-characters-long",
-    "Issuer": "IoTProjectAPI",
-    "Audience": "IoTProjectClient",
-    "ExpirationDays": 7
-  },
-  "AzureIoTHub": {
-    "ConnectionString": "HostName=iot-project-hub.azure-devices.net;SharedAccessKeyName=service;SharedAccessKey=...",
-    "EventHubConnectionString": "Endpoint=sb://....servicebus.windows.net/;SharedAccessKeyName=iothubowner;SharedAccessKey=...;EntityPath=iot-project-hub",
-    "ConsumerGroup": "$Default"
-  }
-}
+```bash
+az sql db show-connection-string \
+  --server iot-project-sql-server \
+  --name iot_project_db \
+  --client ado.net
 ```
 
-### 2. Run Database Migrations
+**Connection String Format:**
+```
+Server=tcp:iot-project-sql-server.database.windows.net,1433;Initial Catalog=iot_project_db;Persist Security Info=False;User ID=sqladmin;Password=YourSecurePassword123!;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;
+```
+
+## 3. Create App Service Plan
+
+```bash
+az appservice plan create \
+  --name iot-api-plan \
+  --resource-group iot-project-rg \
+  --sku B1 \
+  --is-linux
+```
+
+## 4. Create Web App
+
+```bash
+az webapp create \
+  --name iot-api-20241117 \
+  --resource-group iot-project-rg \
+  --plan iot-api-plan \
+  --runtime "DOTNETCORE:8.0"
+```
+
+## 5. Configure App Settings
+
+### Connection String
+
+```bash
+az webapp config connection-string set \
+  --name iot-api-20241117 \
+  --resource-group iot-project-rg \
+  --connection-string-type SQLAzure \
+  --settings DefaultConnection="Server=tcp:iot-project-sql-server.database.windows.net,1433;Initial Catalog=iot_project_db;Persist Security Info=False;User ID=sqladmin;Password=YourSecurePassword123!;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
+```
+
+### JWT Secret Key
+
+Generate a secure random key (32+ characters):
+
+```bash
+# PowerShell
+-join ((65..90) + (97..122) + (48..57) | Get-Random -Count 32 | % {[char]$_})
+
+# Linux/Mac
+openssl rand -base64 32
+```
+
+Set in Azure:
+
+```bash
+az webapp config appsettings set \
+  --name iot-api-20241117 \
+  --resource-group iot-project-rg \
+  --settings JwtSettings__SecretKey="YourGeneratedSecretKeyHere"
+```
+
+### Additional Settings
+
+```bash
+az webapp config appsettings set \
+  --name iot-api-20241117 \
+  --resource-group iot-project-rg \
+  --settings \
+    JwtSettings__Issuer="IoTProjectAPI" \
+    JwtSettings__Audience="IoTProjectClient" \
+    JwtSettings__ExpirationDays="7"
+```
+
+## 6. Enable WebSocket Support
+
+```bash
+az webapp config set \
+  --name iot-api-20241117 \
+  --resource-group iot-project-rg \
+  --web-sockets-enabled true
+```
+
+## 7. Deploy Application
 
 ```bash
 cd IoTProject.API
-dotnet tool install --global dotnet-ef
-dotnet ef migrations add InitialCreate
-dotnet ef database update
+az webapp up \
+  --name iot-api-20241117 \
+  --resource-group iot-project-rg \
+  --runtime "DOTNETCORE:8.0"
 ```
 
-### 3. Start Backend Server
+## 8. Verify Deployment
 
 ```bash
-dotnet run
+curl https://iot-api-20241117.azurewebsites.net/health
 ```
-
-Server will start on:
-- HTTPS: https://localhost:7000
-- HTTP: http://localhost:5000
-- Swagger: https://localhost:7000/swagger
 
 ## Mobile App Configuration
 
-### 1. Install Dependencies
-
-```bash
-cd MobileApp
-npm install
-```
-
-### 2. Configure API Endpoint
-
-Edit `MobileApp/src/config/api.ts`:
+Update `MobileApp/src/config/api.ts`:
 
 ```typescript
-// For Android emulator
-export const API_BASE_URL = 'https://10.0.2.2:7000';
-export const SIGNALR_HUB_URL = 'https://10.0.2.2:7000/hubs/sensordata';
-
-// For physical device (use your computer's IP)
-// export const API_BASE_URL = 'https://192.168.1.100:7000';
-// export const SIGNALR_HUB_URL = 'https://192.168.1.100:7000/hubs/sensordata';
-
-// For Azure deployment
-// export const API_BASE_URL = 'https://iot-project-api.azurewebsites.net';
-// export const SIGNALR_HUB_URL = 'https://iot-project-api.azurewebsites.net/hubs/sensordata';
+export const API_BASE_URL = 'https://iot-api-20241117.azurewebsites.net';
 ```
 
-### 3. Start Mobile App
+## Raspberry Pi Configuration
 
-```bash
-npm start
+### WebSocket Endpoint
+
+**Development:**
+```
+ws://localhost:5000/ws/sensor-data
 ```
 
-## IoT Device Configuration
-
-### MQTT Endpoint
-
-Devices send data to Azure IoT Hub using MQTT protocol:
-
-**Protocol**: MQTT over TLS  
-**Host**: `iot-project-hub.azure-devices.net`  
-**Port**: 8883  
-**Topic**: `devices/esp32-sensor-01/messages/events/`
-
-### Device Connection String
-
-Use the device connection string obtained from:
-
-```bash
-az iot hub device-identity connection-string show \
-  --device-id esp32-sensor-01 \
-  --hub-name iot-project-hub
+**Production:**
+```
+wss://iot-api-20241117.azurewebsites.net/ws/sensor-data
 ```
 
-Format:
-```
-HostName=iot-project-hub.azure-devices.net;DeviceId=esp32-sensor-01;SharedAccessKey=...
-```
+### Example Connection (Python)
 
-### Message Format
+```python
+import asyncio
+import websockets
+import json
+from datetime import datetime
 
-Send JSON messages with sensor data:
+async def send_sensor_data():
+    uri = "wss://iot-api-20241117.azurewebsites.net/ws/sensor-data"
+    async with websockets.connect(uri) as websocket:
+        data = {
+            "type": "ph",
+            "deviceId": "raspberry-pi-01",
+            "value": 7.2,
+            "metadata": json.dumps({"location": "tank-1"}),
+            "timestamp": datetime.utcnow().isoformat() + "Z"
+        }
+        await websocket.send(json.dumps(data))
+        response = await websocket.recv()
+        print(f"Response: {response}")
 
-```json
-{
-  "ph": 7.2,
-  "temperature": 22.5,
-  "weight": 45.3,
-  "outside": 16.8
-}
-```
-
-### Test Message
-
-Send test message from CLI:
-
-```bash
-az iot device send-d2c-message \
-  --device-id esp32-sensor-01 \
-  --hub-name iot-project-hub \
-  --data '{"ph":7.2,"temperature":22.5,"weight":45.3,"outside":16.8}'
-```
-
-## API Endpoints
-
-### Authentication
-
-**POST** `/api/auth/register`
-```json
-{
-  "firstName": "John",
-  "lastName": "Doe",
-  "email": "john@example.com",
-  "password": "password123"
-}
-```
-
-**POST** `/api/auth/login`
-```json
-{
-  "email": "john@example.com",
-  "password": "password123"
-}
-```
-
-### Sensor Data (requires JWT token)
-
-**GET** `/api/sensordata/ph?limit=10`  
-**GET** `/api/sensordata/temp?limit=10`  
-**GET** `/api/sensordata/weight?limit=10`  
-**GET** `/api/sensordata/outside?limit=10`  
-**GET** `/api/sensordata/all?limit=10`  
-**GET** `/api/sensordata/stats`
-
-### Authorization Header
-
-```
-Authorization: Bearer <JWT_TOKEN>
-```
-
-## Data Flow
-
-```
-IoT Device (ESP32)
-    |
-    | MQTT (port 8883)
-    v
-Azure IoT Hub
-    |
-    | Event Hub endpoint
-    v
-Backend API (.NET)
-    |
-    |-- Azure SQL Database (store data)
-    |
-    |-- SignalR Hub (broadcast real-time)
-    |
-    v
-Mobile App (React Native)
+asyncio.run(send_sensor_data())
 ```
 
 ## Troubleshooting
 
-### Cannot connect to SQL Server
+### Database Connection Issues
 
-Check firewall rules and verify connection string.
+1. Check firewall rules allow your IP or Azure services
+2. Verify connection string format
+3. Test connection: `az sql db show-connection-string --server <server> --name <db> --client ado.net`
 
-### IoT Hub connection failed
+### WebSocket Issues
 
-Verify connection strings in appsettings.json.
+1. Ensure WebSocket is enabled: `az webapp config show --name <app> --resource-group <rg> --query webSocketsEnabled`
+2. Use `wss://` (secure) in production
+3. Check App Service logs: `az webapp log tail --name <app> --resource-group <rg>`
 
-### Mobile app cannot connect
+### Deployment Issues
 
-For Android emulator, use `10.0.2.2` instead of `localhost`.  
-For physical device, use your computer's IP address on the same network.
+1. Check build logs in Azure Portal
+2. Verify runtime: `az webapp show --name <app> --resource-group <rg> --query linuxFxVersion`
+3. Review application logs
 
-### SignalR not working
+## Cost Estimation
 
-Ensure JWT token is valid and passed correctly in connection URL as query parameter or header.
+- **SQL Database Basic**: ~$5/month
+- **App Service B1**: ~$13/month (or use F1 free tier)
+- **Total**: ~$18/month (or free with student account)
 
+## Cleanup
+
+To delete all resources:
+
+```bash
+az group delete --name iot-project-rg --yes
+```

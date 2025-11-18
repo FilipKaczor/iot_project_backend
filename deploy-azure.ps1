@@ -113,3 +113,4 @@ Write-Host ""
 $WEB_APP_NAME | Out-File -FilePath "azure-url.txt" -Encoding UTF8
 Write-Host "URL saved to: azure-url.txt" -ForegroundColor Green
 
+

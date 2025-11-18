@@ -1,5 +1,4 @@
 using IoTProject.API.Data;
-using IoTProject.API.Hubs;
 using IoTProject.API.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -67,22 +66,6 @@ builder.Services.AddAuthentication(options =>
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
         ClockSkew = TimeSpan.Zero
     };
-    
-    // JWT dla SignalR
-    options.Events = new JwtBearerEvents
-    {
-        OnMessageReceived = context =>
-        {
-            var accessToken = context.Request.Query["access_token"];
-            var path = context.HttpContext.Request.Path;
-            
-            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
-            {
-                context.Token = accessToken;
-            }
-            return Task.CompletedTask;
-        }
-    };
 });
 
 builder.Services.AddAuthorization();
@@ -98,14 +81,8 @@ builder.Services.AddCors(options =>
     });
 });
 
-// SignalR
-builder.Services.AddSignalR();
-
-// Background Services
-builder.Services.AddHostedService<IoTHubListenerService>();
-
-// Singleton services
-builder.Services.AddSingleton<IoTHubService>();
+// WebSocket Service
+builder.Services.AddSingleton<WebSocketService>();
 
 var app = builder.Build();
 
@@ -120,18 +97,44 @@ app.UseHttpsRedirection();
 
 app.UseCors("AllowAll");
 
+// WebSocket support
+app.UseWebSockets(new WebSocketOptions
+{
+    KeepAliveInterval = TimeSpan.FromMinutes(2)
+});
+
+// WebSocket endpoint for Raspberry Pi
+app.Use(async (context, next) =>
+{
+    if (context.Request.Path == "/ws/sensor-data")
+    {
+        if (context.WebSockets.IsWebSocketRequest)
+        {
+            var webSocket = await context.WebSockets.AcceptWebSocketAsync();
+            var webSocketService = context.RequestServices.GetRequiredService<WebSocketService>();
+            await webSocketService.HandleWebSocketAsync(webSocket);
+        }
+        else
+        {
+            context.Response.StatusCode = 400;
+        }
+    }
+    else
+    {
+        await next();
+    }
+});
+
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
 
-// SignalR Hub
-app.MapHub<SensorDataHub>("/hubs/sensordata");
-
 // Health check
 app.MapGet("/health", () => Results.Ok(new { 
     status = "OK", 
-    timestamp = DateTime.UtcNow 
+    timestamp = DateTime.UtcNow,
+    version = "2.0"
 }));
 
 // Initialize database
@@ -151,7 +154,7 @@ using (var scope = app.Services.CreateScope())
 
 Console.WriteLine("🚀 IoT Project API Starting...");
 Console.WriteLine($"🌐 Environment: {app.Environment.EnvironmentName}");
-Console.WriteLine($"📡 Swagger UI: {(app.Environment.IsDevelopment() ? "https://localhost:7000/swagger" : "disabled")}");
+Console.WriteLine($"📡 WebSocket: /ws/sensor-data");
+Console.WriteLine($"📋 Swagger UI: {(app.Environment.IsDevelopment() ? "https://localhost:7000/swagger" : "disabled")}");
 
 app.Run();
-

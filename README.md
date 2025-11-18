@@ -1,25 +1,36 @@
 # IoT Project Backend - ASP.NET Core + Azure
 
-IoT system integrating Azure IoT Hub, Azure SQL Database, and React Native mobile application. Backend implemented in C# (ASP.NET Core 8.0).
+Production-ready IoT system with WebSocket data ingestion from Raspberry Pi and HTTP REST API for mobile application.
+
+## Architecture
+
+```
+Raspberry Pi → WebSocket → Backend → SQL Database
+                                    ↓
+Mobile App ← HTTP REST ← Backend ← SQL Database
+```
+
+### Data Flow
+- **Raspberry Pi**: Sends sensor data via WebSocket (`/ws/sensor-data`)
+- **Backend**: Stores data in Azure SQL Database
+- **Mobile App**: Retrieves data via HTTP REST API for charts and visualization
 
 ## Technology Stack
 
 ### Backend
 - **ASP.NET Core 8.0** Web API
-- **Entity Framework Core** + Azure SQL
-- **Azure IoT Hub SDK** dla C#
-- **SignalR** - real-time communication
-- **JWT Authentication**
-- **Swagger/OpenAPI** - dokumentacja API
+- **Entity Framework Core** + Azure SQL Database
+- **WebSocket** - for Raspberry Pi sensor data ingestion
+- **JWT Authentication** - for mobile app security
+- **Swagger/OpenAPI** - API documentation
 
 ### Cloud
-- **Azure IoT Hub** (Free F1) - MQTT broker
-- **Azure SQL Database** (Basic) - storage
-- **Azure App Service** (opcjonalnie) - hosting
+- **Azure SQL Database** (Basic tier) - data storage
+- **Azure App Service** - hosting
 
 ### Mobile
 - **React Native** + Expo
-- **SignalR Client** - real-time updates
+- **HTTP REST API** - data retrieval
 
 ## Requirements
 
@@ -41,8 +52,7 @@ cd iot_project_backend
 
 Follow instructions in **[SETUP.md](SETUP.md)**:
 - Create Azure SQL Database
-- Create Azure IoT Hub
-- Obtain connection strings
+- Obtain connection string
 
 ### 3. Configure appsettings.json
 
@@ -51,243 +61,208 @@ Edit `IoTProject.API/appsettings.json`:
 ```json
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Server=twoj-server.database.windows.net;Database=iot_project_db;User Id=sqladmin;Password=TwojeHaslo!;Encrypt=True;"
+    "DefaultConnection": "Server=your-server.database.windows.net;Database=iot_project_db;User Id=sqladmin;Password=YourPassword123!;Encrypt=True;"
   },
   "JwtSettings": {
-    "SecretKey": "TwojSuperTajnyKluczMinimum32ZnakiDlaProdukcji!",
+    "SecretKey": "YourSuperSecretKeyMinimum32CharactersLongForProduction!",
     "Issuer": "IoTProjectAPI",
     "Audience": "IoTProjectClient",
     "ExpirationDays": 7
-  },
-  "AzureIoTHub": {
-    "ConnectionString": "HostName=twoj-iot-hub.azure-devices.net;SharedAccessKeyName=service;SharedAccessKey=...",
-    "EventHubConnectionString": "Endpoint=sb://...servicebus.windows.net/;...;EntityPath=twoj-iot-hub"
   }
 }
 ```
 
-### 4. Run Database Migrations
+### 4. Run database migrations
 
 ```bash
 cd IoTProject.API
-dotnet tool install --global dotnet-ef
-dotnet ef migrations add InitialCreate
 dotnet ef database update
 ```
 
-### 5. Start API Server
+### 5. Run the application
 
 ```bash
 dotnet run
-# Or with auto-reload: dotnet watch run
 ```
 
-API available at:
-- HTTPS: https://localhost:7000
-- HTTP: http://localhost:5000
-- Swagger UI: https://localhost:7000/swagger
+API will be available at:
+- HTTP: `http://localhost:5000`
+- HTTPS: `https://localhost:7000`
+- Swagger: `https://localhost:7000/swagger`
 
 ## API Endpoints
 
-### Authorization
+### Authentication
 
-All endpoints (except `/api/auth/*`) require JWT token in header:
+#### Register
+```http
+POST /api/auth/register
+Content-Type: application/json
 
-```
-Authorization: Bearer YOUR_JWT_TOKEN
-```
-
-### Auth Endpoints
-
-#### POST `/api/auth/register`
-Register new user.
-
-**Request:**
-```json
 {
-  "firstName": "Jan",
-  "lastName": "Kowalski",
-  "email": "jan@example.com",
-  "password": "SecurePass123"
+  "firstName": "John",
+  "lastName": "Doe",
+  "email": "john@example.com",
+  "password": "SecurePassword123!"
 }
 ```
 
-**Response:**
-```json
+#### Login
+```http
+POST /api/auth/login
+Content-Type: application/json
+
 {
-  "success": true,
-  "message": "User registered successfully",
-  "token": "eyJhbGc...",
-  "user": {
-    "id": 1,
-    "firstName": "Jan",
-    "lastName": "Kowalski",
-    "email": "jan@example.com"
-  }
+  "email": "john@example.com",
+  "password": "SecurePassword123!"
 }
 ```
 
-#### POST `/api/auth/login`
-User login.
+Response includes JWT token for authenticated requests.
 
-**Request:**
+### Sensor Data (Requires Authentication)
+
+All endpoints require `Authorization: Bearer <token>` header.
+
+#### Get pH Data
+```http
+GET /api/sensordata/ph?limit=10
+Authorization: Bearer <token>
+```
+
+#### Get Temperature Data
+```http
+GET /api/sensordata/temp?limit=10
+Authorization: Bearer <token>
+```
+
+#### Get Weight Data
+```http
+GET /api/sensordata/weight?limit=10
+Authorization: Bearer <token>
+```
+
+#### Get Outside Data
+```http
+GET /api/sensordata/outside?limit=10
+Authorization: Bearer <token>
+```
+
+#### Get All Data
+```http
+GET /api/sensordata/all?limit=10
+Authorization: Bearer <token>
+```
+
+#### Get Statistics
+```http
+GET /api/sensordata/stats
+Authorization: Bearer <token>
+```
+
+### Health Check
+
+```http
+GET /health
+```
+
+## WebSocket Endpoint
+
+### Raspberry Pi Connection
+
+**Endpoint**: `ws://your-server/ws/sensor-data` (or `wss://` for HTTPS)
+
+**Message Format** (JSON):
 ```json
 {
-  "email": "jan@example.com",
-  "password": "SecurePass123"
+  "type": "ph",
+  "deviceId": "raspberry-pi-01",
+  "value": 7.2,
+  "metadata": "{\"location\":\"tank-1\"}",
+  "timestamp": "2024-01-15T10:30:00Z"
 }
 ```
 
-### Sensor Data Endpoints
+**Supported Types**: `ph`, `temp`, `temperature`, `weight`, `outside`
 
-#### GET `/api/sensordata/ph?limit=10`
-Get pH sensor data (default: last 10 records).
-
-#### GET `/api/sensordata/temp?limit=10`
-Get temperature sensor data.
-
-#### GET `/api/sensordata/weight?limit=10`
-Get weight sensor data.
-
-#### GET `/api/sensordata/outside?limit=10`
-Get outside sensor data.
-
-#### GET `/api/sensordata/all?limit=10`
-Get all sensor data at once.
-
-**Response:**
+**Response** (Acknowledgment):
 ```json
 {
-  "success": true,
-  "data": {
-    "ph": [
-      {
-        "id": 1,
-        "deviceId": "esp32-sensor-01",
-        "value": 7.2,
-        "metadata": "{\"ph\":7.2,\"temperature\":22.5}",
-        "timestamp": "2024-01-15T10:30:00Z"
-      }
-    ],
-    "temp": [...],
-    "weight": [...],
-    "outside": [...]
-  }
+  "status": "OK",
+  "timestamp": "2024-01-15T10:30:01Z"
 }
 ```
 
-#### GET `/api/sensordata/stats`
-Get measurement statistics.
+### Example Python Client (Raspberry Pi)
 
-**Response:**
-```json
-{
-  "success": true,
-  "stats": {
-    "phCount": 1234,
-    "tempCount": 1234,
-    "weightCount": 1234,
-    "outsideCount": 1234,
-    "lastPhTimestamp": "2024-01-15T10:30:00Z",
-    ...
-  }
-}
-```
+```python
+import asyncio
+import websockets
+import json
+from datetime import datetime
 
-## 🔌 SignalR Real-time
+async def send_sensor_data():
+    uri = "ws://your-server/ws/sensor-data"
+    async with websockets.connect(uri) as websocket:
+        data = {
+            "type": "ph",
+            "deviceId": "raspberry-pi-01",
+            "value": 7.2,
+            "metadata": json.dumps({"location": "tank-1"}),
+            "timestamp": datetime.utcnow().isoformat() + "Z"
+        }
+        await websocket.send(json.dumps(data))
+        response = await websocket.recv()
+        print(f"Response: {response}")
 
-### Hub URL
-```
-wss://localhost:7000/hubs/sensordata
-```
-
-### Połączenie (JavaScript/TypeScript)
-
-```typescript
-import * as signalR from '@microsoft/signalr';
-
-const connection = new signalR.HubConnectionBuilder()
-  .withUrl('https://localhost:7000/hubs/sensordata', {
-    accessTokenFactory: () => yourJwtToken
-  })
-  .withAutomaticReconnect()
-  .build();
-
-// Odbieranie danych z czujników
-connection.on('ReceiveSensorUpdate', (data) => {
-  console.log('Sensor update:', data);
-  // { deviceId, data, timestamp }
-});
-
-await connection.start();
-
-// Subscribe do updates
-await connection.invoke('SubscribeToUpdates');
+asyncio.run(send_sensor_data())
 ```
 
 ## Database Structure
 
-### Table `Users`
-```sql
-Id (int, PK)
-FirstName (nvarchar(100))
-LastName (nvarchar(100))
-Email (nvarchar(255), unique)
-PasswordHash (nvarchar(255))
-CreatedAt (datetime2)
-UpdatedAt (datetime2)
-```
+### Users
+- `Id` (int, PK)
+- `FirstName` (string)
+- `LastName` (string)
+- `Email` (string, unique)
+- `PasswordHash` (string)
+- `CreatedAt` (datetime)
+- `UpdatedAt` (datetime)
 
-### Sensor Tables
-`SensorPh`, `SensorTemp`, `SensorWeight`, `SensorOutside`
+### SensorPh
+- `Id` (int, PK)
+- `DeviceId` (string)
+- `Value` (double)
+- `Metadata` (string, nullable)
+- `Timestamp` (datetime)
 
-```sql
-Id (int, PK)
-DeviceId (nvarchar(100), indexed)
-Value (float)
-Metadata (nvarchar(max)) -- JSON
-Timestamp (datetime2, indexed DESC)
-```
+### SensorTemp
+- `Id` (int, PK)
+- `DeviceId` (string)
+- `Value` (double)
+- `Metadata` (string, nullable)
+- `Timestamp` (datetime)
 
-## IoT Device Configuration (ESP32/Arduino)
+### SensorWeight
+- `Id` (int, PK)
+- `DeviceId` (string)
+- `Value` (double)
+- `Metadata` (string, nullable)
+- `Timestamp` (datetime)
 
-See `Examples/ESP32_IoTHub_Example.ino` for sample ESP32 code.
+### SensorOutside
+- `Id` (int, PK)
+- `DeviceId` (string)
+- `Value` (double)
+- `Metadata` (string, nullable)
+- `Timestamp` (datetime)
 
-### Device Connection String
+## Mobile App Configuration
 
-Obtain from: **Azure Portal → IoT Hub → Devices → [your device] → Primary connection string**
-
-```
-HostName=twoj-iot-hub.azure-devices.net;DeviceId=esp32-sensor-01;SharedAccessKey=...
-```
-
-## Mobile Application
-
-React Native application located in `MobileApp/` directory.
-
-### Installation
-
-```bash
-cd MobileApp
-npm install
-
-# iOS
-npx pod-install
-npx react-native run-ios
-
-# Android
-npx react-native run-android
-
-# Or Expo
-npx expo start
-```
-
-### Configuration
-
-Edit `MobileApp/src/config/api.ts`:
+Update `MobileApp/src/config/api.ts`:
 
 ```typescript
-export const API_BASE_URL = 'https://localhost:7000'; // or Azure URL
+export const API_BASE_URL = 'https://your-api.azurewebsites.net';
 ```
 
 ## Docker
@@ -302,121 +277,130 @@ docker build -t iot-project-api -f IoTProject.API/Dockerfile .
 
 ```bash
 docker run -p 8080:8080 \
-  -e ConnectionStrings__DefaultConnection="..." \
-  -e AzureIoTHub__ConnectionString="..." \
+  -e ConnectionStrings__DefaultConnection="your-connection-string" \
+  -e JwtSettings__SecretKey="your-secret-key" \
   iot-project-api
-```
-
-### Docker Compose
-
-```bash
-docker-compose up -d
 ```
 
 ## Azure Deployment
 
-### Azure App Service
+### Prerequisites
+
+- Azure CLI installed and logged in
+- Azure SQL Database created
+- Resource group created
+
+### Deploy
 
 ```bash
-# Zaloguj się do Azure
-az login
+# Windows PowerShell
+.\deploy-azure.ps1
 
-# Utwórz App Service
-az webapp up --name iot-project-api --sku F1
-
-# Deploy
-dotnet publish -c Release
-az webapp deploy --src-path ./IoTProject.API/bin/Release/net8.0/publish.zip
+# Linux/Mac
+./deploy-azure.sh
 ```
 
-### Or via Visual Studio
-1. Right-click on project → **Publish**
-2. Select **Azure**
-3. **Azure App Service (Windows/Linux)**
-4. Configure and publish
+Or manually:
+
+```bash
+# Create App Service Plan
+az appservice plan create \
+  --name iot-api-plan \
+  --resource-group your-resource-group \
+  --sku B1 \
+  --is-linux
+
+# Create Web App
+az webapp create \
+  --name iot-api-20241117 \
+  --resource-group your-resource-group \
+  --plan iot-api-plan \
+  --runtime "DOTNETCORE:8.0"
+
+# Configure connection string
+az webapp config connection-string set \
+  --name iot-api-20241117 \
+  --resource-group your-resource-group \
+  --connection-string-type SQLAzure \
+  --settings DefaultConnection="your-sql-connection-string"
+
+# Configure JWT secret
+az webapp config appsettings set \
+  --name iot-api-20241117 \
+  --resource-group your-resource-group \
+  --settings JwtSettings__SecretKey="your-secret-key"
+
+# Deploy
+az webapp up \
+  --name iot-api-20241117 \
+  --resource-group your-resource-group \
+  --runtime "DOTNETCORE:8.0"
+```
 
 ## Testing
 
-### Unit tests
+### Health Check
 
 ```bash
-dotnet test
+curl https://your-api.azurewebsites.net/health
 ```
 
-### Swagger UI
-
-Open: https://localhost:7000/swagger
-
-### cURL examples
+### Register User
 
 ```bash
-# Register
-curl -X POST https://localhost:7000/api/auth/register \
+curl -X POST https://your-api.azurewebsites.net/api/auth/register \
   -H "Content-Type: application/json" \
-  -d '{"firstName":"Test","lastName":"User","email":"test@test.com","password":"test123"}'
-
-# Login
-TOKEN=$(curl -X POST https://localhost:7000/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"test@test.com","password":"test123"}' \
-  | jq -r '.token')
-
-# Get sensor data
-curl -X GET "https://localhost:7000/api/sensordata/all?limit=10" \
-  -H "Authorization: Bearer $TOKEN"
+  -d '{"firstName":"Test","lastName":"User","email":"test@example.com","password":"test123"}'
 ```
 
-## Azure Costs
+### Login
 
-### Free tier configuration for student projects:
-- Azure IoT Hub F1: Free (8,000 messages/day)
-- Azure SQL Basic: ~5 PLN/month (~1.25 EUR)
-- Azure App Service F1: Free
+```bash
+curl -X POST https://your-api.azurewebsites.net/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"test123"}'
+```
 
-**Total: ~5 PLN/month (~1.25 EUR)**
+### Get Sensor Data (with token)
 
-## Documentation
-
-- **[SETUP.md](SETUP.md)** - Complete setup guide with Azure configuration
-- **[Examples/ESP32_IoTHub_Example.ino](Examples/ESP32_IoTHub_Example.ino)** - ESP32 sample code
+```bash
+curl https://your-api.azurewebsites.net/api/sensordata/ph \
+  -H "Authorization: Bearer <your-token>"
+```
 
 ## Security
 
-- JWT Authentication
-- BCrypt password hashing
-- HTTPS enforcement
-- SQL injection protection (EF Core parametrized queries)
-- CORS configuration
-- Azure SQL firewall
-- Secrets in appsettings (excluded from git)
+- JWT tokens with expiration
+- Password hashing with BCrypt
+- HTTPS enforced in production
+- CORS configured for mobile app
+- SQL injection protection via Entity Framework
+
+## Costs (Azure Free Tier)
+
+- **Azure SQL Database Basic**: ~$5/month (or use free tier if available)
+- **Azure App Service**: Free tier available (F1)
+- **Total**: ~$5/month or free with student account
 
 ## Useful Commands
 
 ```bash
-# Create new migration
-dotnet ef migrations add MigrationName
+# Create migration
+dotnet ef migrations add MigrationName --project IoTProject.API
 
 # Update database
-dotnet ef database update
+dotnet ef database update --project IoTProject.API
 
-# Rollback to previous migration
-dotnet ef database update PreviousMigrationName
+# Run application
+dotnet run --project IoTProject.API
 
-# Remove last migration
-dotnet ef migrations remove
+# Build
+dotnet build
 
-# Generate SQL script
-dotnet ef migrations script
-
-# Check EF tools version
-dotnet ef --version
+# Publish
+dotnet publish -c Release
 ```
 
 ## License
 
-ISC
-
----
-
-Version: 1.0.0
-
+MIT

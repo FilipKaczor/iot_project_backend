@@ -310,3 +310,4 @@ SignalR requires either HTTP/2 or WebSocket support. Use HTTP endpoint if HTTPS 
 - [ ] Azure IoT Hub configured (if using IoT devices)
 - [ ] Database accessible from server
 
+

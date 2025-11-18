@@ -100,3 +100,4 @@ echo "2. Test: curl https://$WEB_APP_NAME.azurewebsites.net/health"
 echo "3. Update mobile app API_BASE_URL to this URL"
 echo ""
 
+

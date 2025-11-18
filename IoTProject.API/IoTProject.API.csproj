@@ -23,17 +23,9 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     
-    <!-- Azure IoT Hub -->
-    <PackageReference Include="Microsoft.Azure.Devices" Version="1.39.1" />
-    <PackageReference Include="Azure.Messaging.EventHubs" Version="5.11.0" />
-    <PackageReference Include="Azure.Messaging.EventHubs.Processor" Version="5.11.0" />
-    
     <!-- JWT Authentication -->
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.0" />
-    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="7.0.3" />
-    
-    <!-- SignalR for real-time communication -->
-    <PackageReference Include="Microsoft.AspNetCore.SignalR" Version="1.1.0" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.2.1" />
     
     <!-- Password hashing -->
     <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
