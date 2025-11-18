@@ -81,8 +81,8 @@ builder.Services.AddCors(options =>
     });
 });
 
-// WebSocket Service
-builder.Services.AddSingleton<WebSocketService>();
+// MQTT Service
+builder.Services.AddHostedService<MqttService>();
 
 var app = builder.Build();
 
@@ -96,34 +96,6 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.UseCors("AllowAll");
-
-// WebSocket support
-app.UseWebSockets(new WebSocketOptions
-{
-    KeepAliveInterval = TimeSpan.FromMinutes(2)
-});
-
-// WebSocket endpoint for Raspberry Pi
-app.Use(async (context, next) =>
-{
-    if (context.Request.Path == "/ws/sensor-data")
-    {
-        if (context.WebSockets.IsWebSocketRequest)
-        {
-            var webSocket = await context.WebSockets.AcceptWebSocketAsync();
-            var webSocketService = context.RequestServices.GetRequiredService<WebSocketService>();
-            await webSocketService.HandleWebSocketAsync(webSocket);
-        }
-        else
-        {
-            context.Response.StatusCode = 400;
-        }
-    }
-    else
-    {
-        await next();
-    }
-});
 
 app.UseAuthentication();
 app.UseAuthorization();
@@ -154,7 +126,7 @@ using (var scope = app.Services.CreateScope())
 
 Console.WriteLine("🚀 IoT Project API Starting...");
 Console.WriteLine($"🌐 Environment: {app.Environment.EnvironmentName}");
-Console.WriteLine($"📡 WebSocket: /ws/sensor-data");
+Console.WriteLine($"📡 MQTT: Port 1883 (sensors/ph, sensors/temp, sensors/weight, sensors/outside)");
 Console.WriteLine($"📋 Swagger UI: {(app.Environment.IsDevelopment() ? "https://localhost:7000/swagger" : "disabled")}");
 
 app.Run();

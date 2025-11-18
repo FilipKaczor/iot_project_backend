@@ -1,18 +1,18 @@
 # IoT Project Backend - ASP.NET Core + Azure
 
-Production-ready IoT system with WebSocket data ingestion from Raspberry Pi and HTTP REST API for mobile application.
+Production-ready IoT system with MQTT data ingestion from Raspberry Pi and HTTP REST API for mobile application.
 
 ## Architecture
 
 ```
-Raspberry Pi → WebSocket → Backend → SQL Database
-                                    ↓
+Raspberry Pi → MQTT → Backend → SQL Database
+                              ↓
 Mobile App ← HTTP REST ← Backend ← SQL Database
 ```
 
 ### Data Flow
-- **Raspberry Pi**: Sends sensor data via WebSocket (`/ws/sensor-data`)
-- **Backend**: Stores data in Azure SQL Database
+- **Raspberry Pi**: Publishes sensor data via MQTT (port 1883)
+- **Backend**: MQTT broker receives messages and stores in Azure SQL Database
 - **Mobile App**: Retrieves data via HTTP REST API for charts and visualization
 
 ## Technology Stack
@@ -20,7 +20,7 @@ Mobile App ← HTTP REST ← Backend ← SQL Database
 ### Backend
 - **ASP.NET Core 8.0** Web API
 - **Entity Framework Core** + Azure SQL Database
-- **WebSocket** - for Raspberry Pi sensor data ingestion
+- **MQTT Broker** (MQTTnet) - for Raspberry Pi sensor data ingestion
 - **JWT Authentication** - for mobile app security
 - **Swagger/OpenAPI** - API documentation
 
@@ -166,16 +166,22 @@ Authorization: Bearer <token>
 GET /health
 ```
 
-## WebSocket Endpoint
+## MQTT Configuration
 
 ### Raspberry Pi Connection
 
-**Endpoint**: `ws://your-server/ws/sensor-data` (or `wss://` for HTTPS)
+**MQTT Broker**: `your-server` (or IP address)  
+**Port**: `1883` (default MQTT port)
 
-**Message Format** (JSON):
+**Topics**:
+- `sensors/ph` - pH sensor data
+- `sensors/temp` - Temperature sensor data
+- `sensors/weight` - Weight sensor data
+- `sensors/outside` - Outside sensor data
+
+**Message Format** (JSON payload):
 ```json
 {
-  "type": "ph",
   "deviceId": "raspberry-pi-01",
   "value": 7.2,
   "metadata": "{\"location\":\"tank-1\"}",
@@ -183,39 +189,39 @@ GET /health
 }
 ```
 
-**Supported Types**: `ph`, `temp`, `temperature`, `weight`, `outside`
-
-**Response** (Acknowledgment):
-```json
-{
-  "status": "OK",
-  "timestamp": "2024-01-15T10:30:01Z"
-}
-```
+**Note**: Sensor type is automatically extracted from the topic name. You can also include `"type": "ph"` in the payload.
 
 ### Example Python Client (Raspberry Pi)
 
 ```python
-import asyncio
-import websockets
+import paho.mqtt.client as mqtt
 import json
 from datetime import datetime
 
-async def send_sensor_data():
-    uri = "ws://your-server/ws/sensor-data"
-    async with websockets.connect(uri) as websocket:
-        data = {
-            "type": "ph",
-            "deviceId": "raspberry-pi-01",
-            "value": 7.2,
-            "metadata": json.dumps({"location": "tank-1"}),
-            "timestamp": datetime.utcnow().isoformat() + "Z"
-        }
-        await websocket.send(json.dumps(data))
-        response = await websocket.recv()
-        print(f"Response: {response}")
+def on_connect(client, userdata, flags, rc):
+    print(f"Connected with result code {rc}")
 
-asyncio.run(send_sensor_data())
+def on_publish(client, userdata, mid):
+    print(f"Message published: {mid}")
+
+# Create MQTT client
+client = mqtt.Client()
+client.on_connect = on_connect
+client.on_publish = on_publish
+
+# Connect to broker
+client.connect("your-server", 1883, 60)
+
+# Publish sensor data
+data = {
+    "deviceId": "raspberry-pi-01",
+    "value": 7.2,
+    "metadata": json.dumps({"location": "tank-1"}),
+    "timestamp": datetime.utcnow().isoformat() + "Z"
+}
+
+client.publish("sensors/ph", json.dumps(data))
+client.loop_start()
 ```
 
 ## Database Structure

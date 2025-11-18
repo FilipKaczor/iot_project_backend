@@ -30,6 +30,10 @@
     <!-- Password hashing -->
     <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
     
+    <!-- MQTT -->
+    <PackageReference Include="MQTTnet" Version="4.3.3.952" />
+    <PackageReference Include="MQTTnet.AspNetCore" Version="4.3.3.952" />
+    
     <!-- Configuration -->
     <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" Version="8.0.0" />
   </ItemGroup>

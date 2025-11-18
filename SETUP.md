@@ -165,41 +165,60 @@ export const API_BASE_URL = 'https://iot-api-20241117.azurewebsites.net';
 
 ## Raspberry Pi Configuration
 
-### WebSocket Endpoint
+### MQTT Broker
 
 **Development:**
 ```
-ws://localhost:5000/ws/sensor-data
+Host: localhost
+Port: 1883
 ```
 
 **Production:**
 ```
-wss://iot-api-20241117.azurewebsites.net/ws/sensor-data
+Host: iot-api-20241117.azurewebsites.net
+Port: 1883
 ```
+
+**Note**: Azure App Service may require additional configuration for MQTT port. Consider using Azure IoT Hub or a dedicated MQTT broker for production.
+
+### Topics
+
+- `sensors/ph` - pH sensor data
+- `sensors/temp` - Temperature sensor data
+- `sensors/weight` - Weight sensor data
+- `sensors/outside` - Outside sensor data
 
 ### Example Connection (Python)
 
 ```python
-import asyncio
-import websockets
+import paho.mqtt.client as mqtt
 import json
 from datetime import datetime
 
-async def send_sensor_data():
-    uri = "wss://iot-api-20241117.azurewebsites.net/ws/sensor-data"
-    async with websockets.connect(uri) as websocket:
-        data = {
-            "type": "ph",
-            "deviceId": "raspberry-pi-01",
-            "value": 7.2,
-            "metadata": json.dumps({"location": "tank-1"}),
-            "timestamp": datetime.utcnow().isoformat() + "Z"
-        }
-        await websocket.send(json.dumps(data))
-        response = await websocket.recv()
-        print(f"Response: {response}")
+def on_connect(client, userdata, flags, rc):
+    print(f"Connected with result code {rc}")
 
-asyncio.run(send_sensor_data())
+def on_publish(client, userdata, mid):
+    print(f"Message published: {mid}")
+
+# Create MQTT client
+client = mqtt.Client()
+client.on_connect = on_connect
+client.on_publish = on_publish
+
+# Connect to broker
+client.connect("iot-api-20241117.azurewebsites.net", 1883, 60)
+
+# Publish sensor data
+data = {
+    "deviceId": "raspberry-pi-01",
+    "value": 7.2,
+    "metadata": json.dumps({"location": "tank-1"}),
+    "timestamp": datetime.utcnow().isoformat() + "Z"
+}
+
+client.publish("sensors/ph", json.dumps(data))
+client.loop_start()
 ```
 
 ## Troubleshooting

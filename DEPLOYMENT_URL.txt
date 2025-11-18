@@ -32,8 +32,10 @@ GET https://iot-api-20251117225131.azurewebsites.net/api/sensordata/outside?limi
 GET https://iot-api-20251117225131.azurewebsites.net/api/sensordata/all?limit=10
 GET https://iot-api-20251117225131.azurewebsites.net/api/sensordata/stats
 
-WEBSOCKET (Raspberry Pi):
-wss://iot-api-20251117225131.azurewebsites.net/ws/sensor-data
+MQTT (Raspberry Pi):
+Host: iot-api-20251117225131.azurewebsites.net
+Port: 1883
+Topics: sensors/ph, sensors/temp, sensors/weight, sensors/outside
 
 ================================================================================
 CONFIGURATION
@@ -55,17 +57,25 @@ export const API_BASE_URL = 'https://iot-api-20251117225131.azurewebsites.net';
 RASPBERRY PI CONFIGURATION
 ================================================================================
 
-WebSocket Endpoint:
-wss://iot-api-20251117225131.azurewebsites.net/ws/sensor-data
+MQTT Broker:
+Host: iot-api-20251117225131.azurewebsites.net
+Port: 1883
 
-Message Format (JSON):
+Topics:
+- sensors/ph
+- sensors/temp
+- sensors/weight
+- sensors/outside
+
+Message Format (JSON payload):
 {
-  "type": "ph|temp|weight|outside",
   "deviceId": "raspberry-pi-01",
   "value": 7.2,
   "metadata": "{\"location\":\"tank-1\"}",
   "timestamp": "2024-01-15T10:30:00Z"
 }
+
+Note: Sensor type is extracted from topic name.
 
 ================================================================================
 AZURE CONFIGURATION REQUIRED
