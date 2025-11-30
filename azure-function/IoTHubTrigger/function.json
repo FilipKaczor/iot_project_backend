@@ -1,0 +1,15 @@
+{
+  "scriptFile": "__init__.py",
+  "bindings": [
+    {
+      "type": "eventHubTrigger",
+      "name": "event",
+      "direction": "in",
+      "eventHubName": "smart-brewery-iothub",
+      "connection": "IoTHubConnection",
+      "cardinality": "one",
+      "consumerGroup": "$Default"
+    }
+  ]
+}
+

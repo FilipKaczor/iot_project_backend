@@ -1,0 +1,15 @@
+{
+  "scriptFile": "../app/azure_function.py",
+  "bindings": [
+    {
+      "type": "eventHubTrigger",
+      "name": "event",
+      "direction": "in",
+      "eventHubName": "smart-brewery-hub",
+      "connection": "IoTHubConnection",
+      "cardinality": "one",
+      "consumerGroup": "$Default"
+    }
+  ]
+}
+

@@ -1,412 +1,438 @@
-# IoT Project Backend - ASP.NET Core + Azure
+# Smart Brewery IoT Server
 
-Production-ready IoT system with MQTT data ingestion from Raspberry Pi and HTTP REST API for mobile application.
+Azure-hosted IoT server for smart brewery monitoring system. Receives sensor data from Raspberry Pi via MQTT (Azure IoT Hub) and provides REST API for mobile application.
 
 ## Architecture
 
 ```
-Raspberry Pi → MQTT → Backend → SQL Database
-                              ↓
-Mobile App ← HTTP REST ← Backend ← SQL Database
+┌─────────────────┐     MQTT (8883)      ┌──────────────────┐
+│  Raspberry Pi   │ ──────────────────── │  Azure IoT Hub   │
+│  (Sensors)      │                      │                  │
+└─────────────────┘                      └────────┬─────────┘
+                                                  │
+                                                  │ Event Trigger
+                                                  ▼
+┌─────────────────┐     HTTP (443)       ┌──────────────────┐
+│  Mobile App     │ ──────────────────── │  Azure App       │
+│                 │      REST API        │  Service         │
+└─────────────────┘                      │  (FastAPI)       │
+                                         └────────┬─────────┘
+                                                  │
+                                                  ▼
+                                         ┌──────────────────┐
+                                         │  Azure SQL       │
+                                         │  Database        │
+                                         └──────────────────┘
 ```
 
-### Data Flow
-- **Raspberry Pi**: Publishes sensor data via MQTT (port 1883)
-- **Backend**: MQTT broker receives messages and stores in Azure SQL Database
-- **Mobile App**: Retrieves data via HTTP REST API for charts and visualization
+---
 
-## Technology Stack
+## 🔧 For Hardware Team (Raspberry Pi)
 
-### Backend
-- **ASP.NET Core 8.0** Web API
-- **Entity Framework Core** + Azure SQL Database
-- **MQTT Broker** (MQTTnet) - for Raspberry Pi sensor data ingestion
-- **JWT Authentication** - for mobile app security
-- **Swagger/OpenAPI** - API documentation
+### Connection Details
 
-### Cloud
-- **Azure SQL Database** (Basic tier) - data storage
-- **Azure App Service** - hosting
+| Parameter | Value |
+|-----------|-------|
+| **Protocol** | MQTT 3.1.1 over TLS |
+| **Port** | **8883** |
+| **Hostname** | `{iot-hub-name}.azure-devices.net` |
+| **Username** | `{iot-hub-name}.azure-devices.net/{device-id}/?api-version=2021-04-12` |
+| **Topic** | `devices/{device-id}/messages/events/` |
 
-### Mobile
-- **React Native** + Expo
-- **HTTP REST API** - data retrieval
+### JSON Payload Formats
 
-## Requirements
+All messages must be valid JSON with a `type` field to identify the sensor.
 
-- .NET 8.0 SDK - [Download](https://dotnet.microsoft.com/download/dotnet/8.0)
-- Visual Studio 2022 or VS Code with C# Dev Kit
-- Azure Subscription - [Free tier](https://azure.microsoft.com/free/students/)
-- Node.js 18+ (for mobile application)
-
-## Installation and Setup
-
-### 1. Clone repository
-
-```bash
-git clone https://github.com/your-repo/iot_project_backend.git
-cd iot_project_backend
-```
-
-### 2. Azure Configuration
-
-Follow instructions in **[SETUP.md](SETUP.md)**:
-- Create Azure SQL Database
-- Obtain connection string
-
-### 3. Configure appsettings.json
-
-Edit `IoTProject.API/appsettings.json`:
-
+#### 1. Weight Sensor
 ```json
 {
-  "ConnectionStrings": {
-    "DefaultConnection": "Server=your-server.database.windows.net;Database=iot_project_db;User Id=sqladmin;Password=YourPassword123!;Encrypt=True;"
-  },
-  "JwtSettings": {
-    "SecretKey": "YourSuperSecretKeyMinimum32CharactersLongForProduction!",
-    "Issuer": "IoTProjectAPI",
-    "Audience": "IoTProjectClient",
-    "ExpirationDays": 7
-  }
+    "type": "weight",
+    "device_id": "raspberry-pi-01",
+    "weight_kg": 25.5,
+    "timestamp": "2024-01-15T10:30:00Z"
 }
 ```
 
-### 4. Run database migrations
-
-```bash
-cd IoTProject.API
-dotnet ef database update
-```
-
-### 5. Run the application
-
-```bash
-dotnet run
-```
-
-API will be available at:
-- HTTP: `http://localhost:5000`
-- HTTPS: `https://localhost:7000`
-- Swagger: `https://localhost:7000/swagger`
-
-## API Endpoints
-
-### Authentication
-
-#### Register
-```http
-POST /api/auth/register
-Content-Type: application/json
-
-{
-  "firstName": "John",
-  "lastName": "Doe",
-  "email": "john@example.com",
-  "password": "SecurePassword123!"
-}
-```
-
-#### Login
-```http
-POST /api/auth/login
-Content-Type: application/json
-
-{
-  "email": "john@example.com",
-  "password": "SecurePassword123!"
-}
-```
-
-Response includes JWT token for authenticated requests.
-
-### Sensor Data (Requires Authentication)
-
-All endpoints require `Authorization: Bearer <token>` header.
-
-#### Get pH Data
-```http
-GET /api/sensordata/ph?limit=10
-Authorization: Bearer <token>
-```
-
-#### Get Temperature Data
-```http
-GET /api/sensordata/temp?limit=10
-Authorization: Bearer <token>
-```
-
-#### Get Weight Data
-```http
-GET /api/sensordata/weight?limit=10
-Authorization: Bearer <token>
-```
-
-#### Get Outside Data
-```http
-GET /api/sensordata/outside?limit=10
-Authorization: Bearer <token>
-```
-
-#### Get All Data
-```http
-GET /api/sensordata/all?limit=10
-Authorization: Bearer <token>
-```
-
-#### Get Statistics
-```http
-GET /api/sensordata/stats
-Authorization: Bearer <token>
-```
-
-### Health Check
-
-```http
-GET /health
-```
-
-## MQTT Configuration
-
-### Raspberry Pi Connection
-
-**MQTT Broker**: `your-server` (or IP address)  
-**Port**: `1883` (default MQTT port)
-
-**Topics**:
-- `sensors/ph` - pH sensor data
-- `sensors/temp` - Temperature sensor data
-- `sensors/weight` - Weight sensor data
-- `sensors/outside` - Outside sensor data
-
-**Message Format** (JSON payload):
+#### 2. Temperature Sensor (Internal)
 ```json
 {
-  "deviceId": "raspberry-pi-01",
-  "value": 7.2,
-  "metadata": "{\"location\":\"tank-1\"}",
-  "timestamp": "2024-01-15T10:30:00Z"
+    "type": "temperature",
+    "device_id": "raspberry-pi-01",
+    "temperature_celsius": 18.5,
+    "timestamp": "2024-01-15T10:30:00Z"
 }
 ```
 
-**Note**: Sensor type is automatically extracted from the topic name. You can also include `"type": "ph"` in the payload.
+#### 3. pH Sensor
+```json
+{
+    "type": "ph",
+    "device_id": "raspberry-pi-01",
+    "ph_value": 4.2,
+    "timestamp": "2024-01-15T10:30:00Z"
+}
+```
 
-### Example Python Client (Raspberry Pi)
+#### 4. Environment Sensor (External)
+```json
+{
+    "type": "environment",
+    "device_id": "raspberry-pi-01",
+    "humidity_percent": 65.0,
+    "temperature_celsius": 22.0,
+    "pressure_hpa": 1013.25,
+    "timestamp": "2024-01-15T10:30:00Z"
+}
+```
+
+### Python Example (Raspberry Pi)
 
 ```python
-import paho.mqtt.client as mqtt
+from azure.iot.device import IoTHubDeviceClient, Message
 import json
-from datetime import datetime
 
-def on_connect(client, userdata, flags, rc):
-    print(f"Connected with result code {rc}")
+# Connection string from Azure IoT Hub
+CONNECTION_STRING = "HostName=xxx.azure-devices.net;DeviceId=xxx;SharedAccessKey=xxx"
 
-def on_publish(client, userdata, mid):
-    print(f"Message published: {mid}")
+client = IoTHubDeviceClient.create_from_connection_string(CONNECTION_STRING)
+client.connect()
 
-# Create MQTT client
-client = mqtt.Client()
-client.on_connect = on_connect
-client.on_publish = on_publish
-
-# Connect to broker
-client.connect("your-server", 1883, 60)
-
-# Publish sensor data
+# Send weight reading
 data = {
-    "deviceId": "raspberry-pi-01",
-    "value": 7.2,
-    "metadata": json.dumps({"location": "tank-1"}),
-    "timestamp": datetime.utcnow().isoformat() + "Z"
+    "type": "weight",
+    "device_id": "raspberry-pi-01",
+    "weight_kg": 25.5
 }
-
-client.publish("sensors/ph", json.dumps(data))
-client.loop_start()
+message = Message(json.dumps(data))
+message.content_encoding = "utf-8"
+message.content_type = "application/json"
+client.send_message(message)
 ```
 
-## Database Structure
+---
 
-### Users
-- `Id` (int, PK)
-- `FirstName` (string)
-- `LastName` (string)
-- `Email` (string, unique)
-- `PasswordHash` (string)
-- `CreatedAt` (datetime)
-- `UpdatedAt` (datetime)
+## 📱 For Mobile App Team
 
-### SensorPh
-- `Id` (int, PK)
-- `DeviceId` (string)
-- `Value` (double)
-- `Metadata` (string, nullable)
-- `Timestamp` (datetime)
-
-### SensorTemp
-- `Id` (int, PK)
-- `DeviceId` (string)
-- `Value` (double)
-- `Metadata` (string, nullable)
-- `Timestamp` (datetime)
-
-### SensorWeight
-- `Id` (int, PK)
-- `DeviceId` (string)
-- `Value` (double)
-- `Metadata` (string, nullable)
-- `Timestamp` (datetime)
-
-### SensorOutside
-- `Id` (int, PK)
-- `DeviceId` (string)
-- `Value` (double)
-- `Metadata` (string, nullable)
-- `Timestamp` (datetime)
-
-## Mobile App Configuration
-
-Update `MobileApp/src/config/api.ts`:
-
-```typescript
-export const API_BASE_URL = 'https://your-api.azurewebsites.net';
+### Base URL
+```
+https://{app-name}.azurewebsites.net
 ```
 
-## Docker
+### API Endpoints
 
-### Build
+#### Authentication
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/health` | ❌ | Health check |
+| POST | `/register` | ❌ | Register new user |
+| POST | `/login` | ❌ | Login and get JWT token |
+| GET | `/user_info` | ✅ | Get current user info |
+
+#### Sensor Data (All require authentication)
+
+| Method | Endpoint | Parameters | Description |
+|--------|----------|------------|-------------|
+| GET | `/readings/weight` | `days` (1-365) | Weight sensor data |
+| GET | `/readings/temperature` | `days` (1-365) | Internal temperature data |
+| GET | `/readings/ph` | `days` (1-365) | pH sensor data |
+| GET | `/readings/environment` | `days` (1-365) | External environment data |
+
+### Authentication Flow
+
+1. **Register** a new user:
+```http
+POST /register
+Content-Type: application/json
+
+{
+    "email": "user@example.com",
+    "username": "brewer1",
+    "password": "securepassword",
+    "full_name": "John Brewer"
+}
+```
+
+2. **Login** to get token:
+```http
+POST /login
+Content-Type: application/json
+
+{
+    "username": "brewer1",
+    "password": "securepassword"
+}
+```
+
+Response:
+```json
+{
+    "access_token": "eyJhbGciOiJIUzI1NiIs...",
+    "token_type": "bearer"
+}
+```
+
+3. **Use token** in subsequent requests:
+```http
+GET /readings/weight?days=7
+Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
+```
+
+### Example Responses
+
+#### GET /readings/weight?days=7
+```json
+[
+    {
+        "id": 1,
+        "device_id": "raspberry-pi-01",
+        "weight_kg": 25.5,
+        "timestamp": "2024-01-15T10:30:00Z"
+    },
+    {
+        "id": 2,
+        "device_id": "raspberry-pi-01",
+        "weight_kg": 25.3,
+        "timestamp": "2024-01-15T11:30:00Z"
+    }
+]
+```
+
+#### GET /readings/environment?days=3
+```json
+[
+    {
+        "id": 1,
+        "device_id": "raspberry-pi-01",
+        "humidity_percent": 65.0,
+        "temperature_celsius": 22.0,
+        "pressure_hpa": 1013.25,
+        "timestamp": "2024-01-15T10:30:00Z"
+    }
+]
+```
+
+#### GET /user_info
+```json
+{
+    "id": 1,
+    "email": "user@example.com",
+    "username": "brewer1",
+    "full_name": "John Brewer",
+    "is_active": true,
+    "created_at": "2024-01-10T08:00:00Z"
+}
+```
+
+### Error Responses
+
+```json
+{
+    "detail": "Incorrect username or password"
+}
+```
+
+```json
+{
+    "detail": "Invalid authentication credentials"
+}
+```
+
+---
+
+## 🚀 Deployment
+
+### Local Development
+
+1. Create virtual environment:
+```bash
+python -m venv venv
+venv\Scripts\activate  # Windows
+source venv/bin/activate  # Linux/Mac
+```
+
+2. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+3. Configure environment:
+```bash
+copy env.example.txt .env
+# Edit .env with your settings
+```
+
+4. Run server:
+```bash
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+5. Access API docs: http://localhost:8000/docs
+
+### Azure Deployment
+
+#### 1. Create Azure Resources
 
 ```bash
-docker build -t iot-project-api -f IoTProject.API/Dockerfile .
-```
+# Login to Azure
+az login
 
-### Run
+# Create resource group
+az group create --name smart-brewery-rg --location westeurope
 
-```bash
-docker run -p 8080:8080 \
-  -e ConnectionStrings__DefaultConnection="your-connection-string" \
-  -e JwtSettings__SecretKey="your-secret-key" \
-  iot-project-api
-```
-
-## Azure Deployment
-
-### Prerequisites
-
-- Azure CLI installed and logged in
-- Azure SQL Database created
-- Resource group created
-
-### Deploy
-
-```bash
-# Windows PowerShell
-.\deploy-azure.ps1
-
-# Linux/Mac
-./deploy-azure.sh
-```
-
-Or manually:
-
-```bash
-# Create App Service Plan
+# Create App Service Plan (B1 tier - cost effective)
 az appservice plan create \
-  --name iot-api-plan \
-  --resource-group your-resource-group \
-  --sku B1 \
-  --is-linux
+    --name smart-brewery-plan \
+    --resource-group smart-brewery-rg \
+    --sku B1 \
+    --is-linux
 
 # Create Web App
 az webapp create \
-  --name iot-api-20241117 \
-  --resource-group your-resource-group \
-  --plan iot-api-plan \
-  --runtime "DOTNETCORE:8.0"
+    --name smart-brewery-api \
+    --resource-group smart-brewery-rg \
+    --plan smart-brewery-plan \
+    --runtime "PYTHON:3.11"
 
-# Configure connection string
-az webapp config connection-string set \
-  --name iot-api-20241117 \
-  --resource-group your-resource-group \
-  --connection-string-type SQLAzure \
-  --settings DefaultConnection="your-sql-connection-string"
+# Create Azure SQL Database
+az sql server create \
+    --name smart-brewery-sql \
+    --resource-group smart-brewery-rg \
+    --admin-user adminuser \
+    --admin-password YourPassword123!
 
-# Configure JWT secret
+az sql db create \
+    --name smart_brewery \
+    --server smart-brewery-sql \
+    --resource-group smart-brewery-rg \
+    --service-objective Basic
+
+# Create IoT Hub (Free tier)
+az iot hub create \
+    --name smart-brewery-hub \
+    --resource-group smart-brewery-rg \
+    --sku F1
+```
+
+#### 2. Configure App Settings
+
+```bash
 az webapp config appsettings set \
-  --name iot-api-20241117 \
-  --resource-group your-resource-group \
-  --settings JwtSettings__SecretKey="your-secret-key"
-
-# Deploy
-az webapp up \
-  --name iot-api-20241117 \
-  --resource-group your-resource-group \
-  --runtime "DOTNETCORE:8.0"
+    --name smart-brewery-api \
+    --resource-group smart-brewery-rg \
+    --settings \
+    DATABASE_URL="mssql+pyodbc://adminuser:YourPassword123!@smart-brewery-sql.database.windows.net/smart_brewery?driver=ODBC+Driver+18+for+SQL+Server" \
+    SECRET_KEY="your-production-secret-key"
 ```
 
-## Testing
-
-### Health Check
+#### 3. Deploy Code
 
 ```bash
-curl https://your-api.azurewebsites.net/health
+# Using ZIP deploy
+az webapp deployment source config-zip \
+    --name smart-brewery-api \
+    --resource-group smart-brewery-rg \
+    --src app.zip
 ```
 
-### Register User
+---
 
-```bash
-curl -X POST https://your-api.azurewebsites.net/api/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"firstName":"Test","lastName":"User","email":"test@example.com","password":"test123"}'
+## 📊 Database Schema
+
+### Tables
+
+#### users
+| Column | Type | Description |
+|--------|------|-------------|
+| id | INT | Primary key |
+| email | VARCHAR(255) | User email |
+| username | VARCHAR(100) | Unique username |
+| hashed_password | VARCHAR(255) | Bcrypt hash |
+| full_name | VARCHAR(255) | Full name |
+| is_active | BOOLEAN | Account status |
+| created_at | DATETIME | Registration date |
+
+#### weight_readings
+| Column | Type | Description |
+|--------|------|-------------|
+| id | INT | Primary key |
+| device_id | VARCHAR(100) | Sensor device ID |
+| weight_kg | FLOAT | Weight in kg |
+| timestamp | DATETIME | Reading time |
+
+#### temperature_readings
+| Column | Type | Description |
+|--------|------|-------------|
+| id | INT | Primary key |
+| device_id | VARCHAR(100) | Sensor device ID |
+| temperature_celsius | FLOAT | Temperature in °C |
+| timestamp | DATETIME | Reading time |
+
+#### ph_readings
+| Column | Type | Description |
+|--------|------|-------------|
+| id | INT | Primary key |
+| device_id | VARCHAR(100) | Sensor device ID |
+| ph_value | FLOAT | pH value (0-14) |
+| timestamp | DATETIME | Reading time |
+
+#### environment_readings
+| Column | Type | Description |
+|--------|------|-------------|
+| id | INT | Primary key |
+| device_id | VARCHAR(100) | Sensor device ID |
+| humidity_percent | FLOAT | Humidity % |
+| temperature_celsius | FLOAT | External temp °C |
+| pressure_hpa | FLOAT | Pressure in hPa |
+| timestamp | DATETIME | Reading time |
+
+---
+
+## 💰 Cost Estimation (Azure)
+
+| Resource | Tier | Monthly Cost |
+|----------|------|--------------|
+| App Service | B1 | ~$13 |
+| SQL Database | Basic | ~$5 |
+| IoT Hub | F1 (Free) | $0 |
+| **Total** | | **~$18/month** |
+
+*For production with higher load, consider scaling to S1 App Service and Standard SQL tier.*
+
+---
+
+## 📁 Project Structure
+
+```
+smart-brewery/
+├── app/
+│   ├── __init__.py
+│   ├── main.py              # FastAPI application
+│   ├── config.py            # Configuration settings
+│   ├── database.py          # Database connection
+│   ├── azure_function.py    # IoT Hub message handler
+│   ├── models/
+│   │   ├── __init__.py
+│   │   ├── user.py          # User model
+│   │   └── readings.py      # Sensor reading models
+│   ├── schemas/
+│   │   ├── __init__.py
+│   │   ├── user.py          # User schemas
+│   │   └── readings.py      # Reading schemas
+│   ├── routers/
+│   │   ├── __init__.py
+│   │   ├── health.py        # Health endpoint
+│   │   ├── auth.py          # Auth endpoints
+│   │   └── readings.py      # Data endpoints
+│   └── services/
+│       ├── __init__.py
+│       ├── auth.py          # Authentication service
+│       └── mqtt_handler.py  # MQTT message handler
+├── azure-deploy/
+│   ├── host.json
+│   └── function.json
+├── requirements.txt
+├── env.example.txt
+└── README.md
 ```
 
-### Login
-
-```bash
-curl -X POST https://your-api.azurewebsites.net/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"test@example.com","password":"test123"}'
-```
-
-### Get Sensor Data (with token)
-
-```bash
-curl https://your-api.azurewebsites.net/api/sensordata/ph \
-  -H "Authorization: Bearer <your-token>"
-```
-
-## Security
-
-- JWT tokens with expiration
-- Password hashing with BCrypt
-- HTTPS enforced in production
-- CORS configured for mobile app
-- SQL injection protection via Entity Framework
-
-## Costs (Azure Free Tier)
-
-- **Azure SQL Database Basic**: ~$5/month (or use free tier if available)
-- **Azure App Service**: Free tier available (F1)
-- **Total**: ~$5/month or free with student account
-
-## Useful Commands
-
-```bash
-# Create migration
-dotnet ef migrations add MigrationName --project IoTProject.API
-
-# Update database
-dotnet ef database update --project IoTProject.API
-
-# Run application
-dotnet run --project IoTProject.API
-
-# Build
-dotnet build
-
-# Publish
-dotnet publish -c Release
-```
-
-## License
-
-MIT

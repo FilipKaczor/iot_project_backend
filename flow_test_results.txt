@@ -1,0 +1,31 @@
+============================================================
+SMART BREWERY - FLOW TEST
+============================================================
+
+[1] HEALTH CHECK
+    Status: 200
+    Response: {"status":"healthy","service":"Smart Brewery IoT Server","database":"healthy"}
+
+[2] REGISTER USER
+    Status: 400
+    User already exists (OK)
+
+[3] LOGIN
+    Status: 200
+    Token: eyJhbGciOiJIUzI1NiIsInR5cCI6Ik...
+
+[4] SEND SENSOR DATA (simulating IoT Hub)
+    weight: 200 - success
+    temperature: 200 - success
+    ph: 200 - success
+    environment: 200 - success
+
+[5] RETRIEVE SENSOR DATA
+    Weight: 200 - 23 records
+    Temperature: 200 - 23 records
+    pH: 200 - 23 records
+    Environment: 200 - 23 records
+
+============================================================
+FLOW TEST COMPLETE!
+============================================================

@@ -1,0 +1,564 @@
+{
+	"info": {
+		"_postman_id": "smart-brewery-iot-api",
+		"name": "Smart Brewery IoT API",
+		"description": "Complete test collection for Smart Brewery IoT Server",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "https://smart-brewery.wittyforest-43b9cebb.westeurope.azurecontainerapps.io",
+			"type": "string"
+		},
+		{
+			"key": "token",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "Health & Info",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/health",
+							"host": ["{{base_url}}"],
+							"path": ["health"]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 200', () => pm.response.to.have.status(200));",
+									"pm.test('Service healthy', () => {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.status).to.eql('healthy');",
+									"});"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "Root Endpoint",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/",
+							"host": ["{{base_url}}"],
+							"path": [""]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 200', () => pm.response.to.have.status(200));"
+								]
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "1. Register User",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"test@brewery.com\",\n    \"username\": \"brewmaster\",\n    \"password\": \"test123\",\n    \"full_name\": \"Brew Master\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/register",
+							"host": ["{{base_url}}"],
+							"path": ["register"]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Registration successful', () => {",
+									"    pm.expect([200, 201, 400]).to.include(pm.response.code);",
+									"});"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "2. Login",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"brewmaster\",\n    \"password\": \"test123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/login",
+							"host": ["{{base_url}}"],
+							"path": ["login"]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 200', () => pm.response.to.have.status(200));",
+									"pm.test('Token received', () => {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.access_token).to.be.a('string');",
+									"    pm.collectionVariables.set('token', json.access_token);",
+									"});"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "3. Get User Info",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{token}}"}
+						],
+						"url": {
+							"raw": "{{base_url}}/user_info",
+							"host": ["{{base_url}}"],
+							"path": ["user_info"]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 200', () => pm.response.to.have.status(200));",
+									"pm.test('User data returned', () => {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.username).to.eql('brewmaster');",
+									"});"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "Login - Invalid Credentials",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"wronguser\",\n    \"password\": \"wrongpass\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/login",
+							"host": ["{{base_url}}"],
+							"path": ["login"]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 401', () => pm.response.to.have.status(401));"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "Get User Info - No Token",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/user_info",
+							"host": ["{{base_url}}"],
+							"path": ["user_info"]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 401', () => pm.response.to.have.status(401));"
+								]
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "MQTT Test (Sensor Input)",
+			"item": [
+				{
+					"name": "Send Weight Data",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"type\": \"weight\",\n    \"device_id\": \"raspberry-pi-01\",\n    \"weight_kg\": 24.5\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/mqtt/test",
+							"host": ["{{base_url}}"],
+							"path": ["mqtt", "test"]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 200', () => pm.response.to.have.status(200));",
+									"pm.test('Data saved', () => {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.status).to.eql('success');",
+									"});"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "Send Temperature Data",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"type\": \"temperature\",\n    \"device_id\": \"raspberry-pi-01\",\n    \"temperature_celsius\": 18.5\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/mqtt/test",
+							"host": ["{{base_url}}"],
+							"path": ["mqtt", "test"]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 200', () => pm.response.to.have.status(200));",
+									"pm.test('Data saved', () => {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.status).to.eql('success');",
+									"});"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "Send pH Data",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"type\": \"ph\",\n    \"device_id\": \"raspberry-pi-01\",\n    \"ph_value\": 4.2\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/mqtt/test",
+							"host": ["{{base_url}}"],
+							"path": ["mqtt", "test"]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 200', () => pm.response.to.have.status(200));",
+									"pm.test('Data saved', () => {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.status).to.eql('success');",
+									"});"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "Send Environment Data",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"type\": \"environment\",\n    \"device_id\": \"raspberry-pi-01\",\n    \"humidity_percent\": 55.5,\n    \"temperature_celsius\": 20.0,\n    \"pressure_hpa\": 1013.25\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/mqtt/test",
+							"host": ["{{base_url}}"],
+							"path": ["mqtt", "test"]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 200', () => pm.response.to.have.status(200));",
+									"pm.test('Data saved', () => {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.status).to.eql('success');",
+									"});"
+								]
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Sensor Readings (API Output)",
+			"item": [
+				{
+					"name": "Get Weight Readings",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{token}}"}
+						],
+						"url": {
+							"raw": "{{base_url}}/readings/weight?days=7",
+							"host": ["{{base_url}}"],
+							"path": ["readings", "weight"],
+							"query": [
+								{"key": "days", "value": "7"}
+							]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 200', () => pm.response.to.have.status(200));",
+									"pm.test('Returns array', () => {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json).to.be.an('array');",
+									"});",
+									"pm.test('Has weight data', () => {",
+									"    const json = pm.response.json();",
+									"    if (json.length > 0) {",
+									"        pm.expect(json[0]).to.have.property('weight_kg');",
+									"        pm.expect(json[0]).to.have.property('device_id');",
+									"        pm.expect(json[0]).to.have.property('timestamp');",
+									"    }",
+									"});"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "Get Temperature Readings",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{token}}"}
+						],
+						"url": {
+							"raw": "{{base_url}}/readings/temperature?days=7",
+							"host": ["{{base_url}}"],
+							"path": ["readings", "temperature"],
+							"query": [
+								{"key": "days", "value": "7"}
+							]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 200', () => pm.response.to.have.status(200));",
+									"pm.test('Returns array', () => {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json).to.be.an('array');",
+									"});",
+									"pm.test('Has temperature data', () => {",
+									"    const json = pm.response.json();",
+									"    if (json.length > 0) {",
+									"        pm.expect(json[0]).to.have.property('temperature_celsius');",
+									"    }",
+									"});"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "Get pH Readings",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{token}}"}
+						],
+						"url": {
+							"raw": "{{base_url}}/readings/ph?days=7",
+							"host": ["{{base_url}}"],
+							"path": ["readings", "ph"],
+							"query": [
+								{"key": "days", "value": "7"}
+							]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 200', () => pm.response.to.have.status(200));",
+									"pm.test('Returns array', () => {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json).to.be.an('array');",
+									"});",
+									"pm.test('Has pH data', () => {",
+									"    const json = pm.response.json();",
+									"    if (json.length > 0) {",
+									"        pm.expect(json[0]).to.have.property('ph_value');",
+									"    }",
+									"});"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "Get Environment Readings",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{token}}"}
+						],
+						"url": {
+							"raw": "{{base_url}}/readings/environment?days=7",
+							"host": ["{{base_url}}"],
+							"path": ["readings", "environment"],
+							"query": [
+								{"key": "days", "value": "7"}
+							]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 200', () => pm.response.to.have.status(200));",
+									"pm.test('Returns array', () => {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json).to.be.an('array');",
+									"});",
+									"pm.test('Has environment data', () => {",
+									"    const json = pm.response.json();",
+									"    if (json.length > 0) {",
+									"        pm.expect(json[0]).to.have.property('humidity_percent');",
+									"        pm.expect(json[0]).to.have.property('temperature_celsius');",
+									"        pm.expect(json[0]).to.have.property('pressure_hpa');",
+									"    }",
+									"});"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "Get Readings - No Auth",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/readings/weight?days=7",
+							"host": ["{{base_url}}"],
+							"path": ["readings", "weight"],
+							"query": [
+								{"key": "days", "value": "7"}
+							]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 401 - Unauthorized', () => pm.response.to.have.status(401));"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "Get Readings - Invalid Days",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{token}}"}
+						],
+						"url": {
+							"raw": "{{base_url}}/readings/weight?days=999",
+							"host": ["{{base_url}}"],
+							"path": ["readings", "weight"],
+							"query": [
+								{"key": "days", "value": "999"}
+							]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 422 - Validation Error', () => pm.response.to.have.status(422));"
+								]
+							}
+						}
+					]
+				}
+			]
+		}
+	]
+}
+
