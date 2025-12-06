@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 # Deployment Guide
 
 ## Local Network Setup (Quick - for team development)
@@ -310,4 +311,266 @@ SignalR requires either HTTP/2 or WebSocket support. Use HTTP endpoint if HTTPS 
 - [ ] Azure IoT Hub configured (if using IoT devices)
 - [ ] Database accessible from server
 
+=======
+# Deployment Guide - Smart Brewery IoT Server
+
+## Wymagania
+
+- Azure CLI zainstalowane i zalogowane (`az login`)
+- PowerShell 5.1+ lub PowerShell Core 7+
+- Subskrypcja Azure z uprawnieniami do tworzenia zasobów
+
+## Szybki Start
+
+### Opcja 1: Wszystko w jednym (zalecane)
+
+```powershell
+.\deploy\quick_deploy.ps1
+```
+
+Skrypt automatycznie:
+1. Utworzy wszystkie zasoby Azure (jeśli nie istnieją)
+2. Zbuduje obraz Docker
+3. Wdroży aplikację
+4. Skonfiguruje zmienne środowiskowe
+
+### Opcja 2: Krok po kroku
+
+#### Krok 1: Setup Azure Resources
+
+```powershell
+.\deploy\setup_azure.ps1
+```
+
+**Co zostanie utworzone:**
+- Resource Group: `smart-brewery-rg`
+- Azure SQL Server: `smart-brewery-sql`
+- Azure SQL Database: `smartbrewerydb` (S0 tier)
+- Azure Container Registry: `smartbreweryacr`
+- Container App Environment: `smart-brewery-env`
+
+**WAŻNE:** Zapisz wygenerowane hasło SQL!
+
+#### Krok 2: Build & Deploy
+
+```powershell
+.\deploy\build_and_deploy.ps1 -SqlAdminPassword "YourPassword123!"
+```
+
+**Lub interaktywnie (skrypt poprosi o hasło):**
+
+```powershell
+.\deploy\build_and_deploy.ps1
+```
+
+## Testowanie
+
+Po wdrożeniu, uruchom testy:
+
+```powershell
+# Pobierz URL aplikacji
+$appUrl = az containerapp show `
+    --name smart-brewery `
+    --resource-group smart-brewery-rg `
+    --query properties.configuration.ingress.fqdn -o tsv
+
+# Uruchom testy
+.\test_api.ps1 -BaseUrl "https://$appUrl"
+```
+
+## Przykłady użycia API
+
+### 1. Health Check
+
+```bash
+curl https://your-app.azurecontainerapps.io/health
+```
+
+### 2. Wysyłanie danych z Raspberry Pi
+
+```bash
+# Temperature
+curl -X POST https://your-app.azurecontainerapps.io/sensor/data \
+  -H "Content-Type: application/json" \
+  -d '{"type": "temperature", "value": 22.5}'
+
+# pH
+curl -X POST https://your-app.azurecontainerapps.io/sensor/data \
+  -H "Content-Type: application/json" \
+  -d '{"type": "ph", "value": 4.2}'
+
+# Weight
+curl -X POST https://your-app.azurecontainerapps.io/sensor/data \
+  -H "Content-Type: application/json" \
+  -d '{"type": "weight", "value": 25.5}'
+
+# Outside Temperature
+curl -X POST https://your-app.azurecontainerapps.io/sensor/data \
+  -H "Content-Type: application/json" \
+  -d '{"type": "outsideTemp", "value": 18.3}'
+
+# Humidity
+curl -X POST https://your-app.azurecontainerapps.io/sensor/data \
+  -H "Content-Type: application/json" \
+  -d '{"type": "humidity", "value": 65.0}'
+
+# Pressure
+curl -X POST https://your-app.azurecontainerapps.io/sensor/data \
+  -H "Content-Type: application/json" \
+  -d '{"type": "pressure", "value": 1013.25}'
+```
+
+### 3. Rejestracja użytkownika
+
+```bash
+curl -X POST https://your-app.azurecontainerapps.io/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "username": "myuser",
+    "password": "securepassword123",
+    "full_name": "John Doe"
+  }'
+```
+
+### 4. Logowanie
+
+```bash
+curl -X POST https://your-app.azurecontainerapps.io/login \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "username=myuser&password=securepassword123"
+```
+
+**Odpowiedź:**
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token_type": "bearer"
+}
+```
+
+### 5. Odczyt danych (wymaga tokenu)
+
+```bash
+TOKEN="your-access-token-here"
+
+# Temperature (ostatnie 7 dni)
+curl -X GET "https://your-app.azurecontainerapps.io/readings/temperature?days=7" \
+  -H "Authorization: Bearer $TOKEN"
+
+# pH (ostatnie 30 dni)
+curl -X GET "https://your-app.azurecontainerapps.io/readings/ph?days=30" \
+  -H "Authorization: Bearer $TOKEN"
+
+# Wszystkie typy sensorów
+curl -X GET "https://your-app.azurecontainerapps.io/readings/weight?days=7" \
+  -H "Authorization: Bearer $TOKEN"
+
+curl -X GET "https://your-app.azurecontainerapps.io/readings/outsideTemp?days=7" \
+  -H "Authorization: Bearer $TOKEN"
+
+curl -X GET "https://your-app.azurecontainerapps.io/readings/humidity?days=7" \
+  -H "Authorization: Bearer $TOKEN"
+
+curl -X GET "https://your-app.azurecontainerapps.io/readings/pressure?days=7" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+### 6. Informacje o użytkowniku
+
+```bash
+curl -X GET https://your-app.azurecontainerapps.io/me \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+### 7. Aktualizacja użytkownika
+
+```bash
+curl -X PUT https://your-app.azurecontainerapps.io/me \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "full_name": "John Updated",
+    "email": "newemail@example.com"
+  }'
+```
+
+## Aktualizacja aplikacji
+
+Po zmianach w kodzie, zaktualizuj aplikację:
+
+```powershell
+.\deploy\build_and_deploy.ps1 `
+    -ImageTag "v2" `
+    -SqlAdminPassword "YourPassword123!"
+```
+
+## Monitoring i logi
+
+### Sprawdzenie logów
+
+```powershell
+az containerapp logs show `
+    --name smart-brewery `
+    --resource-group smart-brewery-rg `
+    --tail 50
+```
+
+### Sprawdzenie statusu
+
+```powershell
+az containerapp show `
+    --name smart-brewery `
+    --resource-group smart-brewery-rg `
+    --query "properties.runningStatus"
+```
+
+### Sprawdzenie zmiennych środowiskowych
+
+```powershell
+az containerapp show `
+    --name smart-brewery `
+    --resource-group smart-brewery-rg `
+    --query "properties.template.containers[0].env"
+```
+
+## Koszty
+
+**Szacunkowe koszty (West Europe):**
+- Azure SQL Database S0: ~$15/miesiąc
+- Azure Container Apps (Consumption): ~$0.000012/vCPU-sekunda
+- Azure Container Registry Basic: ~$5/miesiąc
+- Storage: minimalne
+
+**Łącznie:** ~$20-30/miesiąc przy małym obciążeniu
+
+## Troubleshooting
+
+### Problem: Błąd połączenia z bazą danych
+
+**Rozwiązanie:**
+1. Sprawdź, czy firewall SQL Server pozwala na połączenia z Azure
+2. Sprawdź connection string w zmiennych środowiskowych
+3. Sprawdź logi aplikacji
+
+### Problem: Aplikacja nie startuje
+
+**Rozwiązanie:**
+1. Sprawdź logi: `az containerapp logs show ...`
+2. Sprawdź, czy obraz został zbudowany poprawnie
+3. Sprawdź zmienne środowiskowe
+
+### Problem: 401 Unauthorized
+
+**Rozwiązanie:**
+1. Sprawdź, czy token nie wygasł
+2. Zaloguj się ponownie
+3. Sprawdź format nagłówka: `Authorization: Bearer <token>`
+
+## Dokumentacja API
+
+Po wdrożeniu, dokumentacja Swagger jest dostępna pod:
+- **Swagger UI:** `https://your-app.azurecontainerapps.io/docs`
+- **ReDoc:** `https://your-app.azurecontainerapps.io/redoc`
+>>>>>>> Stashed changes
 

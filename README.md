@@ -1,9 +1,14 @@
 # IoT Project Backend - ASP.NET Core + Azure
 
+<<<<<<< Updated upstream
 Production-ready IoT system with MQTT data ingestion from Raspberry Pi and HTTP REST API for mobile application.
+=======
+Prosty serwer REST API do odbierania danych z czujników Raspberry Pi i udostępniania historycznych danych.
+>>>>>>> Stashed changes
 
-## Architecture
+## Struktura
 
+<<<<<<< Updated upstream
 ```
 Raspberry Pi → MQTT → Backend → SQL Database
                               ↓
@@ -410,3 +415,104 @@ dotnet publish -c Release
 ## License
 
 MIT
+=======
+- **Baza danych**: Azure SQL Database (trwała, nie resetująca się)
+- **Endpoint wysyłania**: `POST /sensor/data` - dla Raspberry Pi (bez autoryzacji)
+- **Endpointy odczytu**: `GET /readings/*` - wymagają autoryzacji, parametr `days` (1-365)
+- **Autoryzacja**: register, login, update user, get user info
+
+## Endpointy
+
+### Sensor Data (bez autoryzacji)
+
+**POST /sensor/data**
+
+Wysyłanie danych z Raspberry Pi:
+
+```bash
+curl -X POST https://your-api.com/sensor/data \
+  -H "Content-Type: application/json" \
+  -d '{"type": "temperature", "value": 22.5, "device_id": "raspberry-pi-brewery"}'
+```
+
+**Typy sensorów:**
+- `temperature` - temperatura wewnętrzna
+- `ph` - wartość pH
+- `weight` - waga w kg
+- `outsideTemp` - temperatura zewnętrzna
+- `humidity` - wilgotność w %
+- `pressure` - ciśnienie w hPa
+
+### Readings (wymaga autoryzacji)
+
+**GET /readings/temperature?days=7**
+**GET /readings/ph?days=7**
+**GET /readings/weight?days=7**
+**GET /readings/outsideTemp?days=7**
+**GET /readings/humidity?days=7**
+**GET /readings/pressure?days=7**
+
+Parametr `days`: 1-365 (domyślnie 7)
+
+### Authentication
+
+**POST /register** - Rejestracja użytkownika
+**POST /login** - Logowanie (zwraca token)
+**GET /me** - Informacje o użytkowniku (wymaga token)
+**PUT /me** - Aktualizacja użytkownika (wymaga token)
+
+## Konfiguracja
+
+Skopiuj `env.example.txt` do `.env` i uzupełnij:
+
+```env
+DATABASE_URL=mssql+pyodbc://username:password@server.database.windows.net/database?driver=ODBC+Driver+18+for+SQL+Server&Encrypt=yes&TrustServerCertificate=no
+SECRET_KEY=your-secret-key-here
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+```
+
+## Uruchomienie
+
+### Lokalnie
+
+```bash
+pip install -r requirements.txt
+uvicorn main:app --reload
+```
+
+### Docker
+
+```bash
+docker build -t smart-brewery .
+docker run -p 8000:8000 --env-file .env smart-brewery
+```
+
+## Wdrożenie na Azure
+
+### Szybkie wdrożenie (wszystko w jednym)
+
+```powershell
+.\deploy\quick_deploy.ps1
+```
+
+### Krok po kroku
+
+1. **Setup Azure Resources:**
+```powershell
+.\deploy\setup_azure.ps1
+```
+
+2. **Build & Deploy:**
+```powershell
+.\deploy\build_and_deploy.ps1 -SqlAdminPassword "YourPassword"
+```
+
+Szczegóły w [deploy/README.md](deploy/README.md)
+
+## Dokumentacja API
+
+Po uruchomieniu serwera:
+- Swagger UI: http://localhost:8000/docs
+- ReDoc: http://localhost:8000/redoc
+
+>>>>>>> Stashed changes

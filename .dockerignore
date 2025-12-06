@@ -1,0 +1,57 @@
+# Git
+.git
+.gitignore
+
+# Documentation (contains special characters)
+README.md
+README_SECRETS.md
+DEPLOYMENT.md
+*.md
+
+# Secrets
+secrets.txt
+secrets.example.txt
+.env
+.env.*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Test files
+test_*.py
+test_*.ps1
+test_*.sh
+*.json
+flow_test_results.txt
+
+# Deployment scripts (not needed in container)
+deploy/
+*.ps1
+*.sh
+
+# Raspberry Pi code (not needed in container)
+raspberry_pi/
+
