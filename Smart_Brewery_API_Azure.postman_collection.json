@@ -1,0 +1,501 @@
+{
+	"info": {
+		"_postman_id": "smart-brewery-v3-collection",
+		"name": "Smart Brewery API - Azure",
+		"description": "Complete API collection for Smart Brewery IoT Server deployed on Azure",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "https://smart-brewery-v3.lemonflower-923d3983.westeurope.azurecontainerapps.io",
+			"type": "string"
+		},
+		{
+			"key": "token",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "Health & Info",
+			"item": [
+				{
+					"name": "Root - API Info",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/",
+							"host": ["{{base_url}}"],
+							"path": [""]
+						},
+						"description": "Get basic API information"
+					}
+				},
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/health",
+							"host": ["{{base_url}}"],
+							"path": ["health"]
+						},
+						"description": "Check API and database health status"
+					}
+				}
+			]
+		},
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "Register User",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"user@example.com\",\n  \"username\": \"testuser\",\n  \"password\": \"Pass123\",\n  \"full_name\": \"Test User\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/register",
+							"host": ["{{base_url}}"],
+							"path": ["register"]
+						},
+						"description": "Register a new user account"
+					}
+				},
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set(\"token\", jsonData.access_token);",
+									"    console.log(\"Token saved: \" + jsonData.access_token);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/x-www-form-urlencoded"
+							}
+						],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "username",
+									"value": "testuser",
+									"type": "text"
+								},
+								{
+									"key": "password",
+									"value": "Pass123",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/login",
+							"host": ["{{base_url}}"],
+							"path": ["login"]
+						},
+						"description": "Login and get JWT token (automatically saved to collection variable)"
+					}
+				},
+				{
+					"name": "Get User Info",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/me",
+							"host": ["{{base_url}}"],
+							"path": ["me"]
+						},
+						"description": "Get current user information (requires authentication)"
+					}
+				},
+				{
+					"name": "Update User",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"full_name\": \"Updated Name\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/me",
+							"host": ["{{base_url}}"],
+							"path": ["me"]
+						},
+						"description": "Update current user information"
+					}
+				}
+			]
+		},
+		{
+			"name": "Sensor Data",
+			"item": [
+				{
+					"name": "Send Temperature",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"type\": \"temperature\",\n  \"value\": 22.5,\n  \"device_id\": \"raspberry-pi-brewery\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/sensor/data",
+							"host": ["{{base_url}}"],
+							"path": ["sensor", "data"]
+						},
+						"description": "Send temperature sensor data (no auth required)"
+					}
+				},
+				{
+					"name": "Send pH",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"type\": \"ph\",\n  \"value\": 4.5,\n  \"device_id\": \"raspberry-pi-brewery\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/sensor/data",
+							"host": ["{{base_url}}"],
+							"path": ["sensor", "data"]
+						},
+						"description": "Send pH sensor data"
+					}
+				},
+				{
+					"name": "Send Weight",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"type\": \"weight\",\n  \"value\": 50.5,\n  \"device_id\": \"raspberry-pi-brewery\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/sensor/data",
+							"host": ["{{base_url}}"],
+							"path": ["sensor", "data"]
+						},
+						"description": "Send weight sensor data"
+					}
+				},
+				{
+					"name": "Send Outside Temperature",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"type\": \"outsideTemp\",\n  \"value\": 15.0,\n  \"device_id\": \"raspberry-pi-brewery\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/sensor/data",
+							"host": ["{{base_url}}"],
+							"path": ["sensor", "data"]
+						},
+						"description": "Send outside temperature sensor data"
+					}
+				},
+				{
+					"name": "Send Humidity",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"type\": \"humidity\",\n  \"value\": 65.0,\n  \"device_id\": \"raspberry-pi-brewery\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/sensor/data",
+							"host": ["{{base_url}}"],
+							"path": ["sensor", "data"]
+						},
+						"description": "Send humidity sensor data"
+					}
+				},
+				{
+					"name": "Send Pressure",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"type\": \"pressure\",\n  \"value\": 1013.25,\n  \"device_id\": \"raspberry-pi-brewery\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/sensor/data",
+							"host": ["{{base_url}}"],
+							"path": ["sensor", "data"]
+						},
+						"description": "Send pressure sensor data"
+					}
+				}
+			]
+		},
+		{
+			"name": "Readings (Auth Required)",
+			"item": [
+				{
+					"name": "Get Temperature Readings",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/readings/temperature?days=7",
+							"host": ["{{base_url}}"],
+							"path": ["readings", "temperature"],
+							"query": [
+								{
+									"key": "days",
+									"value": "7",
+									"description": "Number of days to fetch (1-365)"
+								}
+							]
+						},
+						"description": "Get temperature readings for the last N days"
+					}
+				},
+				{
+					"name": "Get pH Readings",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/readings/ph?days=7",
+							"host": ["{{base_url}}"],
+							"path": ["readings", "ph"],
+							"query": [
+								{
+									"key": "days",
+									"value": "7"
+								}
+							]
+						},
+						"description": "Get pH readings for the last N days"
+					}
+				},
+				{
+					"name": "Get Weight Readings",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/readings/weight?days=7",
+							"host": ["{{base_url}}"],
+							"path": ["readings", "weight"],
+							"query": [
+								{
+									"key": "days",
+									"value": "7"
+								}
+							]
+						},
+						"description": "Get weight readings for the last N days"
+					}
+				},
+				{
+					"name": "Get Outside Temperature Readings",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/readings/outsideTemp?days=7",
+							"host": ["{{base_url}}"],
+							"path": ["readings", "outsideTemp"],
+							"query": [
+								{
+									"key": "days",
+									"value": "7"
+								}
+							]
+						},
+						"description": "Get outside temperature readings for the last N days"
+					}
+				},
+				{
+					"name": "Get Humidity Readings",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/readings/humidity?days=7",
+							"host": ["{{base_url}}"],
+							"path": ["readings", "humidity"],
+							"query": [
+								{
+									"key": "days",
+									"value": "7"
+								}
+							]
+						},
+						"description": "Get humidity readings for the last N days"
+					}
+				},
+				{
+					"name": "Get Pressure Readings",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/readings/pressure?days=7",
+							"host": ["{{base_url}}"],
+							"path": ["readings", "pressure"],
+							"query": [
+								{
+									"key": "days",
+									"value": "7"
+								}
+							]
+						},
+						"description": "Get pressure readings for the last N days"
+					}
+				}
+			]
+		}
+	]
+}
+
